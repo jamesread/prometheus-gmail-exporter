@@ -1,0 +1,31 @@
+= prometheus-gmail-exporter
+
+Checks gmail labels for unread messages and exposes the counts via prometheus.
+
+= Setup and installation
+
+== Python3 dependencies
+
+* configargparse
+* oauth2client
+* googleapi
+
+== Getting `client_secrets.json`
+
+* Go to the Google Developers API Console: https://console.developers.google.com/apis/credentials
+* Create Credentials -> OAuth Client ID 
+** Application Type: Other
+* Click the "down arrow" icon to download your credentials file - `client_secret___.json`.
+* Create a OAuth 2 Consent screen with whatever name and icon you like. The scopes needed are; 
+
+image::consentScreenScopes.png[]
+
+== Running
+
+Simply;
+
+----
+./gmail-prometheus.py
+----
+
+Options can be found with `--help`. 

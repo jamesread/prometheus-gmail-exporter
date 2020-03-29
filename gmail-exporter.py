@@ -1,77 +1,91 @@
 #!/usr/bin/python3
+"""
+Checks gmail labels for unread messages and exposes the counts via prometheus.
+"""
+
+import os
+import sys
+import sched
+from time import time, sleep
+import logging
+from functools import lru_cache
 
 import httplib2
-import os
-import json
-import sys
+import configargparse
 
 from prometheus_client import start_http_server, Gauge
 
-import sched, time
-
-from googleapiclient import discovery, http
+from googleapiclient import discovery
 from oauth2client import client
-from oauth2client import tools
 from oauth2client.file import Storage
-import time
-from datetime import datetime
-import time
 
-import configargparse
+def get_file_path(filename):
+    config_dir = os.path.join(os.path.expanduser("~"), ".prometheus-gmail-exporter")
 
-global args
-parser = configargparse.ArgumentParser(parents=[tools.argparser])
-parser.add_argument('labels', nargs = '*', default = []);
-parser.add_argument('--clientSecretFile', default = '/etc/prometheus-email-exporter.json')
-parser.add_argument("--login", action = 'store_true')
-parser.add_argument("--updateDelaySeconds", type = int, default = 300)
-parser.add_argument("--promPort", type = int, default = 8080)
-args = parser.parse_args();
+    if not os.path.exists(config_dir):
+        os.mkdir(config_dir)
 
-SCOPES = 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.metadata'
-APPLICATION_NAME = 'prometheus-gmail-exporter'
-
-def get_credential_file():
-    home_dir = os.path.expanduser('~')
-    credential_dir = os.path.join(home_dir, '.credentials')
-
-    if not os.path.exists(credential_dir):
-        os.makedirs(credential_dir)
-
-    credentialFile = os.path.join(credential_dir, 'prometheus-gmail-exporter.json')
-
-    return credentialFile
+    return os.path.join(config_dir, filename)
 
 def get_credentials():
     """Gets valid user credentials from storage.
 
     If nothing has been stored, or if the stored credentials are invalid,
     the OAuth2 flow is completed to obtain the new credentials.
-
-    Returns:
-        Credentials, the obtained credential.
     """
 
-    credential_path = get_credential_file();
+    if not os.path.exists(args.clientSecretFile):
+        logging.fatal("Client secrets file does not exist: %s . You probably need to download this from the Google API console.", args.clientSecretFile)
+        sys.exit()
 
-    store = Storage(credential_path)
+    credentials_path = args.credentialsPath
+
+    store = Storage(credentials_path)
     credentials = store.get()
 
     if not credentials or credentials.invalid:
-        flow = client.flow_from_clientsecrets(args.clientSecretFile, SCOPES)
-        flow.user_agent = APPLICATION_NAME
+        scopes = 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.metadata'
+        
+        flow = client.flow_from_clientsecrets(args.clientSecretFile, scopes)
+        flow.user_agent = 'prometheus-gmail-exporter'
 
-        credentials = tools.run_flow(flow, store)
+        credentials = run_flow(flow, store)
 
-        print('Storing credentials to ' + credential_path)
+        logging.info("Storing credentials to %s", credentials_path)
 
     return credentials
 
-def getLabels(service):
+def run_flow(flow, store):
+    flow.redirect_uri = client.OOB_CALLBACK_URN
+    authorize_url = flow.step1_get_authorize_url()
+    
+    logging.info("Go and authorize at: %s", authorize_url)
+    code = input('Enter code:').strip()
+
+    try:
+        credential = flow.step2_exchange(code, http=None)
+    except client.FlowExchangeError as e:
+        logging.fatal("Auth failure: %s", str(e))
+        sys.exit(1)
+
+    store.put(credential)
+    credential.set_store(store)
+
+    return credential
+
+@lru_cache(maxsize=1)
+def get_labels():
+    """
+    Note that this func is cached (lru_cache) and will only run once.
+    """
+
+    logging.info("Getting metadata about labels")
+
     labels = []
 
     if len(args.labels) == 0:
-        results = service.users().labels().list(userId='me').execute()
+        logging.warning("No labels specified, assuming all labels. If you have a lot of labels in your inbox you could hit API limits quickly.")
+        results = GMAIL_CLIENT.users().labels().list(userId='me').execute()
 
         labels = results.get('labels', [])
     else:
@@ -79,63 +93,71 @@ def getLabels(service):
             labels.append({'id': label})
 
     if not labels:
-        print('No labels found.')
-        sys.exit();
+        logging.info('No labels found.')
+        sys.exit()
 
-    return labels;
+    return labels
 
-counters = {}
+gauge_collection = {}
 
-def getCounter(name, desc):
-    if name not in counters:
-        c = Gauge(name, desc);
-        counters[name] = c;
+def get_gauge_for_label(name, desc):
+    if name not in gauge_collection:
+        gauge = Gauge(name, desc)
+        gauge_collection[name] = gauge
 
-    return counters[name]
+    return gauge_collection[name]
 
-def buildMetrics(*args):
-    print("Building metrics");
+def update_gauages_from_gmail(*unused_arguments_needed_for_scheduler):
+    logging.info("Updating gmail metrics ")
 
-    for label in labels:
+    for label in get_labels():
         try: 
-            label_info = service.users().labels().get(id = label['id'], userId = 'me').execute()
-            labelId = label_info['id']
+            label_info = GMAIL_CLIENT.users().labels().get(id=label['id'], userId='me').execute()
 
-            c = getCounter(labelId + '_total')
-            c.set(label_info['threadsTotal'])
+            gauge = get_gauge_for_label(label_info['id'] + '_total', label_info['name']  + ' Total')
+            gauge.set(label_info['threadsTotal'])
 
-            c = getCounter(labelId + '_unread')
-            c.set(label_info['threadsUnread'])
-        except Exception as e: 
+            gauge = get_gauge_for_label(label_info['id'] + '_unread', label_info['name'] + ' Unread')
+            gauge.set(label_info['threadsUnread'])
+        except Exception as e:
             # eg, if this script is started with a label that exists, that is then deleted
             # after startup, 404 exceptions are thrown.
             #
             # Occsionally, the gmail API will throw garbage, too. Hence the try/catch.
-            print("Error!", e)
+            logging.error("Error: %s", e)
 
-def getService():
+def get_gmail_client():
     credentials = get_credentials()
-    http = credentials.authorize(httplib2.Http())
-    service = discovery.build('gmail', 'v1', http=http)
-
-    return service
+    http_client = credentials.authorize(httplib2.Http())
+    return discovery.build('gmail', 'v1', http=http_client)
 
 def main():
+    logging.getLogger().setLevel(20)
+
+    global GMAIL_CLIENT
+    GMAIL_CLIENT = get_gmail_client()
+
+    logging.info("prometheus-gmail-exporter started on port %d", args.promPort)
     start_http_server(args.promPort)
 
-    global service
-    service = getService();
- 
-    global labels
-    labels = getLabels(service)
+    update_gauages_from_gmail() # So we don't have to wait for the first delay
 
-    buildMetrics(); # So we don't have to wait for the first delay
-
-    s = sched.scheduler(time.time, time.sleep)
-    s.enter(args.updateDelaySeconds, 1, buildMetrics)
-    s.run()
-
-    buildMetrics(service, labels);
+    scheduler = sched.scheduler(time, sleep)
+    scheduler.enter(args.updateDelaySeconds, 1, update_gauages_from_gmail)
+    scheduler.run()
 
 if __name__ == '__main__':
-    main()
+    global args
+    parser = configargparse.ArgumentParser(default_config_files=[get_file_path('prometheus-gmail-exporter.cfg'), "/etc/prometheus-gmail-exporter.cfg"])
+    parser.add_argument('labels', nargs='*', default=[])
+    parser.add_argument('--clientSecretFile', default=get_file_path('client_secret.json'))
+    parser.add_argument('--credentialsPath', default=get_file_path('login_cookie.dat'))
+    parser.add_argument("--updateDelaySeconds", type=int, default=300)
+    parser.add_argument("--promPort", type=int, default=8080)
+    args = parser.parse_args()
+
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\n") # Most terminals print a Ctrl+C message as well. Looks ugly with our log.
+        logging.info("Ctrl+C, bye!")
