@@ -42,7 +42,7 @@ image::consentScreenScopes.png[]
 Simply;
 
 ----
-./gmail-prometheus.py
+./gmail-prometheus.py Label_33 INBOX
 ----
 
 Options can be found with `--help`. 
