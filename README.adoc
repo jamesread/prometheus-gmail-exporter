@@ -2,7 +2,7 @@
 
 Checks gmail labels for unread messages and exposes the counts via prometheus.
 
-= Example prometheus Metrics
+== Example prometheus Metrics
 
 ----
 # HELP Label_33_total Triage Total
@@ -19,15 +19,15 @@ INBOX_total 44348.0
 INBOX_unread 39.0
 ----
 
-= Setup and installation
+== Setup and installation
 
-== Python3 dependencies
+=== Python3 dependencies
 
 * configargparse
 * oauth2client
 * googleapi
 
-== Getting `client_secrets.json`
+=== Getting `client_secrets.json`
 
 * Go to the Google Developers API Console: https://console.developers.google.com/apis/credentials
 * Create Credentials -> OAuth Client ID 
