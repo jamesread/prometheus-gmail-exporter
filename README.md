@@ -2,7 +2,9 @@
 
 Checks gmail labels for unread messages and exposes the counts via prometheus.
 
-There is a blog [article about why this was created, with an example integration to Grafana](https://medium.com/james-reads-public-cloud-technology-blog/watching-gmail-labels-with-prometheus-grafana-87b6745acd48).
+There is a blog [article about why this was created, with an example integration to Grafana](https://medium.com/james-reads-public-cloud-technology-blog/watching-gmail-labels-with-prometheus-grafana-87b6745acd48). It looks like this;
+
+![Grafana screenshot](grafanaScreenshot.png)
 
 ## Example prometheus Metrics
 
