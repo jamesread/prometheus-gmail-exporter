@@ -1,12 +1,12 @@
-= prometheus-gmail-exporter
+# prometheus-gmail-exporter
 
 Checks gmail labels for unread messages and exposes the counts via prometheus.
 
-There is a blog https://medium.com/james-reads-public-cloud-technology-blog/watching-gmail-labels-with-prometheus-grafana-87b6745acd48[article about why this was created, with an example integration to Grafana].
+There is a blog [article about why this was created, with an example integration to Grafana](https://medium.com/james-reads-public-cloud-technology-blog/watching-gmail-labels-with-prometheus-grafana-87b6745acd48).
 
-== Example prometheus Metrics
+## Example prometheus Metrics
 
-----
+```sh
 # HELP gmail_INBOX_total INBOX Total
 # TYPE gmail_INBOX_total gauge
 gmail_INBOX_total 44351.0
@@ -19,17 +19,17 @@ gmail_Label_33_total 159.0
 # HELP gmail_Label_33_unread >/0. Triage Unread
 # TYPE gmail_Label_33_unread gauge
 gmail_Label_33_unread 0.0
-----
+```
 
-== Setup and installation
+## Setup and installation
 
-=== Python3 dependencies
+### Python3 dependencies
 
 * configargparse
 * oauth2client
 * googleapi
 
-=== Getting `client_secrets.json`
+### Getting `client_secrets.json`
 
 * Go to the Google Developers API Console: https://console.developers.google.com/apis/credentials
 * Create Credentials -> OAuth Client ID 
@@ -42,30 +42,30 @@ image::consentScreenScopes.png[]
 * Rename your downloaded `client_secret_____.json` to just `client_secret.json`
   and put it in the directory; `~/.prometheus-gmail-exporter/`. 
 
-== Running via as a container image;
+## Running via as a container image;
 
 There is a published container in **hub.docker.com**, called `jamesread/prometheus-gmail-exporter:latest`. 
 
 Using either `docker` or `podman` will be fine. I like `podman` better, so
 examples are with podman.
 
-----
+```
 podman run jamesread/prometheus-gmail-exporter:latest -v ~/.prometheus-gmail-exporter/:/root/.prometheus-gmail-exporter/
-----
+```
 
-== Building your own docker image
+## Building your own docker image
 
-----
+```
 podman build . -t gmail-exporter
 podman run -v ~/.prometheus-gmail-exporter/:/root/.prometheus-gmail-exporter/ gmail-exporter Label_33
-----
+```
 
-== Running via command line
+## Running via command line
 
 Simply;
 
-----
+```
 ./gmail-prometheus.py Label_33 INBOX
-----
+```
 
 Options can be found with `--help`. 
