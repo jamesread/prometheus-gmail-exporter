@@ -101,7 +101,7 @@ gauge_collection = {}
 
 def get_gauge_for_label(name, desc):
     if name not in gauge_collection:
-        gauge = Gauge(name, desc)
+        gauge = Gauge('gmail_' + name, desc)
         gauge_collection[name] = gauge
 
     return gauge_collection[name]
