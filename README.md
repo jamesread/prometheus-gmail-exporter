@@ -29,7 +29,7 @@ gmail_Label_33_unread 0.0
 * Click the "down arrow" icon to download your credentials file - `client_secret___.json`.
 * Create a OAuth 2 Consent screen with whatever name and icon you like. The scopes needed are; 
 
-image::consentScreenScopes.png[]
+![Consent Screen](consentScreenScopes.png)
 
 * Rename your downloaded `client_secret_____.json` to just `client_secret.json`
   and put it in the directory; `~/.prometheus-gmail-exporter/`. 
