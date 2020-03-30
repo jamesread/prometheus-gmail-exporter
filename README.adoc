@@ -37,6 +37,8 @@ INBOX_unread 39.0
 
 image::consentScreenScopes.png[]
 
+* Put your credentials file in `~/.prometheus-gmail-exporter/`. 
+
 == Running
 
 Simply;
