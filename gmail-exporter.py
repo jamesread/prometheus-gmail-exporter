@@ -5,7 +5,6 @@ Checks gmail labels for unread messages and exposes the counts via prometheus.
 
 import os
 import sys
-import sched
 from time import time, sleep
 import logging
 from functools import lru_cache
@@ -131,6 +130,11 @@ def get_gmail_client():
     http_client = credentials.authorize(httplib2.Http())
     return discovery.build('gmail', 'v1', http=http_client)
 
+def infinate_update_loop():
+    while True:
+        update_gauages_from_gmail()
+        sleep(args.updateDelaySeconds)
+
 def main():
     logging.getLogger().setLevel(20)
 
@@ -140,11 +144,8 @@ def main():
     logging.info("prometheus-gmail-exporter started on port %d", args.promPort)
     start_http_server(args.promPort)
 
-    update_gauages_from_gmail() # So we don't have to wait for the first delay
+    infinate_update_loop()
 
-    scheduler = sched.scheduler(time, sleep)
-    scheduler.enter(args.updateDelaySeconds, 1, update_gauages_from_gmail)
-    scheduler.run()
 
 if __name__ == '__main__':
     global args
