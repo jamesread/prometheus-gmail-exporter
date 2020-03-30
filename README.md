@@ -21,15 +21,7 @@ gmail_Label_33_total 159.0
 gmail_Label_33_unread 0.0
 ```
 
-## Setup and installation
-
-### Python3 dependencies
-
-* configargparse
-* oauth2client
-* googleapi
-
-### Getting `client_secrets.json`
+## Getting `client_secrets.json`
 
 * Go to the Google Developers API Console: https://console.developers.google.com/apis/credentials
 * Create Credentials -> OAuth Client ID 
@@ -42,7 +34,7 @@ image::consentScreenScopes.png[]
 * Rename your downloaded `client_secret_____.json` to just `client_secret.json`
   and put it in the directory; `~/.prometheus-gmail-exporter/`. 
 
-## Running via as a container image;
+## Running via as a container image
 
 There is a published container in **hub.docker.com**, called `jamesread/prometheus-gmail-exporter:latest`. 
 
@@ -53,7 +45,7 @@ examples are with podman.
 podman run jamesread/prometheus-gmail-exporter:latest -v ~/.prometheus-gmail-exporter/:/root/.prometheus-gmail-exporter/
 ```
 
-## Building your own docker image
+## Building your own container image
 
 ```
 podman build . -t gmail-exporter
@@ -62,7 +54,14 @@ podman run -v ~/.prometheus-gmail-exporter/:/root/.prometheus-gmail-exporter/ gm
 
 ## Running via command line
 
-Simply;
+### Python3 dependencies
+
+* configargparse
+* oauth2client
+* google-api [ -core, if installed with pip, or -client if yum+rpm ]. 
+* httplib2
+
+Then, simply;
 
 ```
 ./gmail-prometheus.py Label_33 INBOX
