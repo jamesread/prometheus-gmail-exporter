@@ -42,6 +42,11 @@ image::consentScreenScopes.png[]
 
 == Running via as a container image;
 
+There is a published container in **hub.docker.com**, called `jamesread/prometheus-gmail-exporter:latest`. 
+
+Using either `docker` or `podman` will be fine. I like `podman` better, so
+examples are with podman.
+
 ----
 podman run jamesread/prometheus-gmail-exporter:latest -v ~/.prometheus-gmail-exporter/:/root/.prometheus-gmail-exporter/
 ----
