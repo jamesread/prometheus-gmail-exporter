@@ -59,7 +59,23 @@ def run_flow(flow, store):
     authorize_url = flow.step1_get_authorize_url()
     
     logging.info("Go and authorize at: %s", authorize_url)
-    code = input('Enter code:').strip()
+    
+    if sys.stdout.isatty():
+        code = input('Enter code:').strip()
+    else:
+        logging.info("Waiting for code at " + get_file_path('auth_code'))
+
+        while True:
+            try:
+                if os.path.exists(get_file_path('auth_code')):
+                    with open(get_file_path('auth_code'), 'r') as auth_code_file:
+                        code = auth_code_file.read()
+                        break
+                        
+            except Exception as e:
+                logging.critical(e)
+
+            sleep(10);
 
     try:
         credential = flow.step2_exchange(code, http=None)
