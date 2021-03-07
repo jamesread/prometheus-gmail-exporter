@@ -104,6 +104,8 @@ def get_labels():
 
         labels = results.get('labels', [])
     else:
+        logging.info('Using labels: %s ', args.labels)
+
         for label in args.labels:
             labels.append({'id': label})
 
@@ -166,7 +168,7 @@ def main():
 if __name__ == '__main__':
     global args
     parser = configargparse.ArgumentParser(default_config_files=[get_file_path('prometheus-gmail-exporter.cfg'), "/etc/prometheus-gmail-exporter.cfg"])
-    parser.add_argument('labels', nargs='*', default=[])
+    parser.add_argument('--labels', nargs='*', default=[])
     parser.add_argument('--clientSecretFile', default=get_file_path('client_secret.json'))
     parser.add_argument('--credentialsPath', default=get_file_path('login_cookie.dat'))
     parser.add_argument("--updateDelaySeconds", type=int, default=300)
