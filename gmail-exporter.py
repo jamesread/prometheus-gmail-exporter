@@ -18,7 +18,7 @@ from googleapiclient import discovery
 from oauth2client import client
 from oauth2client.file import Storage
 
-def get_file_path(filename):
+def get_homedir_filepath(filename):
     config_dir = os.path.join(os.path.expanduser("~"), ".prometheus-gmail-exporter")
 
     if not os.path.exists(config_dir):
@@ -63,12 +63,12 @@ def run_flow(flow, store):
     if sys.stdout.isatty():
         code = input('Enter code:').strip()
     else:
-        logging.info("Waiting for code at " + get_file_path('auth_code'))
+        logging.info("Waiting for code at " + get_homedir_filepath('auth_code'))
 
         while True:
             try:
-                if os.path.exists(get_file_path('auth_code')):
-                    with open(get_file_path('auth_code'), 'r') as auth_code_file:
+                if os.path.exists(get_homedir_filepath('auth_code')):
+                    with open(get_homedir_filepath('auth_code'), 'r') as auth_code_file:
                         code = auth_code_file.read()
                         break
                         
@@ -117,15 +117,15 @@ def get_labels():
 
 gauge_collection = {}
 
-def get_gauge_for_label(name, desc):
+def get_gauge_for_label(name, desc, labels = []):
     if name not in gauge_collection:
-        gauge = Gauge('gmail_' + name, desc)
+        gauge = Gauge('gmail_' + name, desc, labels)
         gauge_collection[name] = gauge
 
     return gauge_collection[name]
 
 def update_gauages_from_gmail(*unused_arguments_needed_for_scheduler):
-    logging.info("Updating gmail metrics ")
+    logging.info("Updating gmail metrics - started")
 
     for label in get_labels():
         try: 
@@ -136,12 +136,75 @@ def update_gauages_from_gmail(*unused_arguments_needed_for_scheduler):
 
             gauge = get_gauge_for_label(label_info['id'] + '_unread', label_info['name'] + ' Unread')
             gauge.set(label_info['threadsUnread'])
+        
+            if label['id'] in args.labelsForSenderCount:
+                update_sender_gauges_for_label(label_info['id'])
+
         except Exception as e:
             # eg, if this script is started with a label that exists, that is then deleted
             # after startup, 404 exceptions are thrown.
             #
             # Occsionally, the gmail API will throw garbage, too. Hence the try/catch.
             logging.error("Error: %s", e)
+
+    logging.info("Updating gmail metrics - complete")
+
+def get_first_message_sender(thread):
+    if thread == None or thread['messages'] == None:
+        return "unknown-thread-no-messages"
+
+    firstMessage = thread['messages'][0]
+
+    for header in firstMessage['payload']['headers']:
+        if header['name'] == 'From':
+            return header['value']
+
+    return "unknown-no-from"
+
+def get_all_threads_for_label(labelId):
+    logging.info("get_all_threads_for_label - this method can be expensive")
+
+    response = GMAIL_CLIENT.users().threads().list(userId = 'me', labelIds = [labelId]).execute()
+
+    threads = []
+
+    logging.info("get_all_threads_for_label - result size estimate: " + str(response['resultSizeEstimate']))
+
+    if "threads" in response:
+        threads.extend(response['threads'])
+
+    while "nextPageToken" in response:
+        page_token = response['nextPageToken']
+        response = GMAIL_CLIENT.users().threads().list(userId = 'me', labelIds = [labelId], pageToken = page_token).execute()
+        threads.extend(response['threads'])
+        
+        logging.info("Getting more messages: " + str(len(threads)))
+
+    logging.info("Fetching thread messages")
+
+    for thread in threads:
+        res = GMAIL_CLIENT.users().threads().get(userId = 'me', id = thread['id'], format = "metadata").execute()
+
+        thread['messages'] = res['messages']
+
+    logging.info("Finished fetching thread messages")
+
+    return threads
+
+def update_sender_gauges_for_label(label):
+    senders = dict()
+
+    for thread in get_all_threads_for_label(label):
+        sender = get_first_message_sender(thread)
+
+        if sender not in senders:
+            senders[sender] = 0
+
+        senders[sender] += 1;
+
+    for sender, messageCount in senders.items():
+        g = get_gauge_for_label(label + '_sender', 'Label sender info', ['sender'])
+        g.labels(sender=sender).set(messageCount)
 
 def get_gmail_client():
     credentials = get_credentials()
@@ -154,7 +217,7 @@ def infinate_update_loop():
         sleep(args.updateDelaySeconds)
 
 def main():
-    logging.getLogger().setLevel(20)
+    logging.getLogger().setLevel(args.logLevel)
 
     global GMAIL_CLIENT
     GMAIL_CLIENT = get_gmail_client()
@@ -162,17 +225,22 @@ def main():
     logging.info("prometheus-gmail-exporter started on port %d", args.promPort)
     start_http_server(args.promPort)
 
-    infinate_update_loop()
-
+    if args.daemonize: 
+        infinate_update_loop()
+    else: 
+        update_gauages_from_gmail()
 
 if __name__ == '__main__':
     global args
-    parser = configargparse.ArgumentParser(default_config_files=[get_file_path('prometheus-gmail-exporter.cfg'), "/etc/prometheus-gmail-exporter.cfg"])
+    parser = configargparse.ArgumentParser(default_config_files=[get_homedir_filepath('prometheus-gmail-exporter.yaml'), "/etc/prometheus-gmail-exporter.yaml"], config_file_parser_class=configargparse.YAMLConfigFileParser)
     parser.add_argument('--labels', nargs='*', default=[])
-    parser.add_argument('--clientSecretFile', default=get_file_path('client_secret.json'))
-    parser.add_argument('--credentialsPath', default=get_file_path('login_cookie.dat'))
+    parser.add_argument("--labelsForSenderCount", nargs='*', default=[])
+    parser.add_argument('--clientSecretFile', default=get_homedir_filepath('client_secret.json'))
+    parser.add_argument('--credentialsPath', default=get_homedir_filepath('login_cookie.dat'))
     parser.add_argument("--updateDelaySeconds", type=int, default=300)
     parser.add_argument("--promPort", type=int, default=8080)
+    parser.add_argument("--daemonize", action='store_true')
+    parser.add_argument("--logLevel", type=int, default = 20)
     args = parser.parse_args()
 
     try:
