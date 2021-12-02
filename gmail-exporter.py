@@ -18,6 +18,8 @@ from googleapiclient import discovery
 from oauth2client import client
 from oauth2client.file import Storage
 
+THREAD_SENDER_CACHE = dict()
+
 def get_homedir_filepath(filename):
     config_dir = os.path.join(os.path.expanduser("~"), ".prometheus-gmail-exporter")
 
@@ -43,7 +45,7 @@ def get_credentials():
     credentials = store.get()
 
     if not credentials or credentials.invalid:
-        scopes = 'https://www.googleapis.com/auth/gmail.readonly https://www.googleapis.com/auth/gmail.metadata'
+        scopes = 'https://www.googleapis.com/auth/gmail.readonly '
         
         flow = client.flow_from_clientsecrets(args.clientSecretFile, scopes)
         flow.user_agent = 'prometheus-gmail-exporter'
@@ -137,7 +139,7 @@ def update_gauages_from_gmail(*unused_arguments_needed_for_scheduler):
             gauge = get_gauge_for_label(label_info['id'] + '_unread', label_info['name'] + ' Unread')
             gauge.set(label_info['threadsUnread'])
         
-            if label['id'] in args.labelsForSenderCount:
+            if label['id'] in args.labelsSenderCount:
                 update_sender_gauges_for_label(label_info['id'])
 
         except Exception as e:
@@ -162,9 +164,9 @@ def get_first_message_sender(thread):
     return "unknown-no-from"
 
 def get_all_threads_for_label(labelId):
-    logging.info("get_all_threads_for_label - this method can be expensive")
+    logging.info("get_all_threads_for_label - this method can be expensive: " + str(labelId))
 
-    response = GMAIL_CLIENT.users().threads().list(userId = 'me', labelIds = [labelId]).execute()
+    response = GMAIL_CLIENT.users().threads().list(userId = 'me', labelIds = [labelId], q = "is:unread").execute()
 
     threads = []
 
@@ -175,27 +177,33 @@ def get_all_threads_for_label(labelId):
 
     while "nextPageToken" in response:
         page_token = response['nextPageToken']
-        response = GMAIL_CLIENT.users().threads().list(userId = 'me', labelIds = [labelId], pageToken = page_token).execute()
+        response = GMAIL_CLIENT.users().threads().list(userId = 'me', labelIds = [labelId], pageToken = page_token, q = "is:unread").execute()
         threads.extend(response['threads'])
         
-        logging.info("Getting more messages: " + str(len(threads)))
-
-    logging.info("Fetching thread messages")
-
-    for thread in threads:
-        res = GMAIL_CLIENT.users().threads().get(userId = 'me', id = thread['id'], format = "metadata").execute()
-
-        thread['messages'] = res['messages']
-
-    logging.info("Finished fetching thread messages")
+        logging.info("Getting more messages for " + labelId + ":" + str(len(threads)))
 
     return threads
+
+def get_thread_messages(thread):
+    logging.info("Fetching thread messages for " + str(thread['id']))
+
+    res = GMAIL_CLIENT.users().threads().get(userId = 'me', id = thread['id'], format = "metadata").execute()
+
+    thread['messages'] = res['messages']
+
+    return thread
 
 def update_sender_gauges_for_label(label):
     senders = dict()
 
     for thread in get_all_threads_for_label(label):
-        sender = get_first_message_sender(thread)
+        if thread['id'] in THREAD_SENDER_CACHE:
+            logging.info("Thread sender is cached for " + str(thread['id']))
+
+            sender = THREAD_SENDER_CACHE[thread['id']]
+        else: 
+            thread = get_thread_messages(thread)
+            sender = get_first_message_sender(thread)
 
         if sender not in senders:
             senders[sender] = 0
@@ -234,7 +242,7 @@ if __name__ == '__main__':
     global args
     parser = configargparse.ArgumentParser(default_config_files=[get_homedir_filepath('prometheus-gmail-exporter.yaml'), "/etc/prometheus-gmail-exporter.yaml"], config_file_parser_class=configargparse.YAMLConfigFileParser)
     parser.add_argument('--labels', nargs='*', default=[])
-    parser.add_argument("--labelsForSenderCount", nargs='*', default=[])
+    parser.add_argument("--labelsSenderCount", nargs='*', default=[])
     parser.add_argument('--clientSecretFile', default=get_homedir_filepath('client_secret.json'))
     parser.add_argument('--credentialsPath', default=get_homedir_filepath('login_cookie.dat'))
     parser.add_argument("--updateDelaySeconds", type=int, default=300)
