@@ -18,6 +18,7 @@ from googleapiclient import discovery
 from oauth2client import client
 from oauth2client.file import Storage
 
+GMAIL_CLIENT = None
 THREAD_SENDER_CACHE = dict()
 
 def get_homedir_filepath(filename):
@@ -65,7 +66,7 @@ def run_flow(flow, store):
     if sys.stdout.isatty():
         code = input('Enter code:').strip()
     else:
-        logging.info("Waiting for code at " + get_homedir_filepath('auth_code'))
+        logging.info("Waiting for code at %s", get_homedir_filepath('auth_code'))
 
         while True:
             try:
@@ -119,7 +120,10 @@ def get_labels():
 
 gauge_collection = {}
 
-def get_gauge_for_label(name, desc, labels = []):
+def get_gauge_for_label(name, desc, labels = None):
+    if labels is None:
+        labels = []
+
     if name not in gauge_collection:
         gauge = Gauge('gmail_' + name, desc, labels)
         gauge_collection[name] = gauge
@@ -164,7 +168,7 @@ def get_first_message_sender(thread):
     return "unknown-no-from"
 
 def get_all_threads_for_label(labelId):
-    logging.info("get_all_threads_for_label - this method can be expensive: " + str(labelId))
+    logging.info("get_all_threads_for_label - this method can be expensive: %s", str(labelId))
 
     response = GMAIL_CLIENT.users().threads().list(userId = 'me', labelIds = [labelId], q = "is:unread").execute()
 
@@ -243,7 +247,7 @@ if __name__ == '__main__':
     global args
     parser = configargparse.ArgumentParser(default_config_files=[
         get_homedir_filepath('prometheus-gmail-exporter.cfg'),
-        get_homedir_filepath('prometheus-gmail-exporter.yaml'), 
+        get_homedir_filepath('prometheus-gmail-exporter.yaml'),
         "/etc/prometheus-gmail-exporter.cfg",
         "/etc/prometheus-gmail-exporter.yaml",
     ], config_file_parser_class=configargparse.YAMLConfigFileParser)
