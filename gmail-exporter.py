@@ -5,7 +5,7 @@ Checks gmail labels for unread messages and exposes the counts via prometheus.
 
 import os
 import sys
-from time import time, sleep
+from time import sleep
 import logging
 from functools import lru_cache
 
@@ -46,7 +46,7 @@ def get_credentials():
 
     if not credentials or credentials.invalid:
         scopes = 'https://www.googleapis.com/auth/gmail.readonly '
-        
+
         flow = client.flow_from_clientsecrets(args.clientSecretFile, scopes)
         flow.user_agent = 'prometheus-gmail-exporter'
 
@@ -59,9 +59,9 @@ def get_credentials():
 def run_flow(flow, store):
     flow.redirect_uri = client.OOB_CALLBACK_URN
     authorize_url = flow.step1_get_authorize_url()
-    
+
     logging.info("Go and authorize at: %s", authorize_url)
-    
+
     if sys.stdout.isatty():
         code = input('Enter code:').strip()
     else:
@@ -73,11 +73,11 @@ def run_flow(flow, store):
                     with open(get_homedir_filepath('auth_code'), 'r') as auth_code_file:
                         code = auth_code_file.read()
                         break
-                        
+
             except Exception as e:
                 logging.critical(e)
 
-            sleep(10);
+            sleep(10)
 
     try:
         credential = flow.step2_exchange(code, http=None)
@@ -130,7 +130,7 @@ def update_gauages_from_gmail(*unused_arguments_needed_for_scheduler):
     logging.info("Updating gmail metrics - started")
 
     for label in get_labels():
-        try: 
+        try:
             label_info = GMAIL_CLIENT.users().labels().get(id=label['id'], userId='me').execute()
 
             gauge = get_gauge_for_label(label_info['id'] + '_total', label_info['name']  + ' Total')
@@ -138,7 +138,7 @@ def update_gauages_from_gmail(*unused_arguments_needed_for_scheduler):
 
             gauge = get_gauge_for_label(label_info['id'] + '_unread', label_info['name'] + ' Unread')
             gauge.set(label_info['threadsUnread'])
-        
+
             if label['id'] in args.labelsSenderCount:
                 update_sender_gauges_for_label(label_info['id'])
 
@@ -152,7 +152,7 @@ def update_gauages_from_gmail(*unused_arguments_needed_for_scheduler):
     logging.info("Updating gmail metrics - complete")
 
 def get_first_message_sender(thread):
-    if thread == None or thread['messages'] == None:
+    if thread is None or thread['messages'] is None:
         return "unknown-thread-no-messages"
 
     firstMessage = thread['messages'][0]
@@ -170,7 +170,7 @@ def get_all_threads_for_label(labelId):
 
     threads = []
 
-    logging.info("get_all_threads_for_label - result size estimate: " + str(response['resultSizeEstimate']))
+    logging.info("get_all_threads_for_label - result size estimate: %s", str(response['resultSizeEstimate']))
 
     if "threads" in response:
         threads.extend(response['threads'])
@@ -179,13 +179,13 @@ def get_all_threads_for_label(labelId):
         page_token = response['nextPageToken']
         response = GMAIL_CLIENT.users().threads().list(userId = 'me', labelIds = [labelId], pageToken = page_token, q = "is:unread").execute()
         threads.extend(response['threads'])
-        
-        logging.info("Getting more messages for " + labelId + ":" + str(len(threads)))
+
+        logging.info("Getting more threads for label %s: %s", labelId, str(len(threads)))
 
     return threads
 
 def get_thread_messages(thread):
-    logging.info("Fetching thread messages for " + str(thread['id']))
+    logging.info("Fetching thread messages for %s", str(thread['id']))
 
     res = GMAIL_CLIENT.users().threads().get(userId = 'me', id = thread['id'], format = "metadata").execute()
 
@@ -194,23 +194,24 @@ def get_thread_messages(thread):
     return thread
 
 def update_sender_gauges_for_label(label):
-    senders = dict()
+    global THREAD_SENDER_CACHE
+
+    senderCounts = dict()
 
     for thread in get_all_threads_for_label(label):
-        if thread['id'] in THREAD_SENDER_CACHE:
-            logging.info("Thread sender is cached for " + str(thread['id']))
-
-            sender = THREAD_SENDER_CACHE[thread['id']]
-        else: 
+        if thread['id'] not in THREAD_SENDER_CACHE:
             thread = get_thread_messages(thread)
-            sender = get_first_message_sender(thread)
 
-        if sender not in senders:
-            senders[sender] = 0
+            THREAD_SENDER_CACHE[thread['id']] = get_first_message_sender(thread)
 
-        senders[sender] += 1;
+        sender = THREAD_SENDER_CACHE[thread['id']]
 
-    for sender, messageCount in senders.items():
+        if sender not in senderCounts:
+            senderCounts[sender] = 0
+
+        senderCounts[sender] += 1
+
+    for sender, messageCount in senderCounts.items():
         g = get_gauge_for_label(label + '_sender', 'Label sender info', ['sender'])
         g.labels(sender=sender).set(messageCount)
 
@@ -233,14 +234,20 @@ def main():
     logging.info("prometheus-gmail-exporter started on port %d", args.promPort)
     start_http_server(args.promPort)
 
-    if args.daemonize: 
+    if args.daemonize:
         infinate_update_loop()
-    else: 
+    else:
         update_gauages_from_gmail()
 
 if __name__ == '__main__':
     global args
-    parser = configargparse.ArgumentParser(default_config_files=[get_homedir_filepath('prometheus-gmail-exporter.yaml'), "/etc/prometheus-gmail-exporter.yaml"], config_file_parser_class=configargparse.YAMLConfigFileParser)
+    parser = configargparse.ArgumentParser(default_config_files=[
+        get_homedir_filepath('prometheus-gmail-exporter.cfg'),
+        get_homedir_filepath('prometheus-gmail-exporter.yaml'), 
+        "/etc/prometheus-gmail-exporter.cfg",
+        "/etc/prometheus-gmail-exporter.yaml",
+    ], config_file_parser_class=configargparse.YAMLConfigFileParser)
+
     parser.add_argument('--labels', nargs='*', default=[])
     parser.add_argument("--labelsSenderCount", nargs='*', default=[])
     parser.add_argument('--clientSecretFile', default=get_homedir_filepath('client_secret.json'))
