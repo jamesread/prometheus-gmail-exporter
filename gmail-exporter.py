@@ -36,9 +36,9 @@ def get_credentials():
     the OAuth2 flow is completed to obtain the new credentials.
     """
 
-    if not os.path.exists(args.clientSecretFile):
+    while not os.path.exists(args.clientSecretFile):
         logging.fatal("Client secrets file does not exist: %s . You probably need to download this from the Google API console.", args.clientSecretFile)
-        sys.exit()
+        sleep(10)
 
     credentials_path = args.credentialsPath
 
