@@ -15,8 +15,8 @@ import configargparse
 from prometheus_client import start_http_server, Gauge
 
 from googleapiclient import discovery
-from oauth2client import client
-from oauth2client.file import Storage
+from google_auth_oauthlib.flow import InstalledAppFlow
+from google.oauth2.credentials import Credentials
 
 GMAIL_CLIENT = None
 THREAD_SENDER_CACHE = dict()
@@ -36,32 +36,37 @@ def get_credentials():
     the OAuth2 flow is completed to obtain the new credentials.
     """
 
+    SCOPES = 'https://www.googleapis.com/auth/gmail.readonly '
+
     while not os.path.exists(args.clientSecretFile):
         logging.fatal("Client secrets file does not exist: %s . You probably need to download this from the Google API console.", args.clientSecretFile)
         sleep(10)
 
-    credentials_path = args.credentialsPath
+    credentials = None
 
-    store = Storage(credentials_path)
-    credentials = store.get()
+    if os.path.exists(args.credentialsPath):
+        credentials = Credentials.from_authorized_user_file(args.credentialsPath, SCOPES)
 
-    if not credentials or credentials.invalid:
-        scopes = 'https://www.googleapis.com/auth/gmail.readonly '
-
-        flow = client.flow_from_clientsecrets(args.clientSecretFile, scopes)
+    if not credentials or not credentials.valid:
+        flow = InstalledAppFlow.from_client_secrets_file(args.clientSecretFile, SCOPES)
         flow.user_agent = 'prometheus-gmail-exporter'
 
-        credentials = run_flow(flow, store)
+        credentials = flow.run_local_server(port=0, bind_addr = '0.0.0.0', host = args.oauthHost)
 
-        logging.info("Storing credentials to %s", credentials_path)
+        logging.info("Storing credentials to %s", args.credentialsPath)
+
+    with open(args.credentialsPath, 'w') as token:
+        token.write(credentials.to_json())
+
 
     return credentials
 
 def run_flow(flow, store):
-    flow.redirect_uri = client.OOB_CALLBACK_URN
-    authorize_url = flow.step1_get_authorize_url()
+#    flow.redirect_uri = client.OOB_CALLBACK_URN
+    creds = flow.run_local_server(port=0)
+#    authorize_url = flow.step1_get_authorize_url()
 
-    logging.info("Go and authorize at: %s", authorize_url)
+#    logging.info("Go and authorize at: %s", authorize_url)
 
     if sys.stdout.isatty():
         code = input('Enter code:').strip()
@@ -85,9 +90,6 @@ def run_flow(flow, store):
     except client.FlowExchangeError as e:
         logging.fatal("Auth failure: %s", str(e))
         sys.exit(1)
-
-    store.put(credential)
-    credential.set_store(store)
 
     return credential
 
@@ -220,9 +222,7 @@ def update_sender_gauges_for_label(label):
         g.labels(sender=sender).set(messageCount)
 
 def get_gmail_client():
-    credentials = get_credentials()
-    http_client = credentials.authorize(httplib2.Http())
-    return discovery.build('gmail', 'v1', http=http_client)
+    return discovery.build('gmail', 'v1', credentials = get_credentials())
 
 def infinate_update_loop():
     while True:
@@ -257,6 +257,7 @@ if __name__ == '__main__':
     parser.add_argument('--clientSecretFile', default=get_homedir_filepath('client_secret.json'))
     parser.add_argument('--credentialsPath', default=get_homedir_filepath('login_cookie.dat'))
     parser.add_argument("--updateDelaySeconds", type=int, default=300)
+    parser.add_argument("--oauthHost", type=str, default="example.com")
     parser.add_argument("--promPort", type=int, default=8080)
     parser.add_argument("--daemonize", action='store_true')
     parser.add_argument("--logLevel", type=int, default = 20)
