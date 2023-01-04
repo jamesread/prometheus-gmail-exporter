@@ -1,3 +1,6 @@
+default:
+	go build github.com/jamesread/prometheus-gmail-exporter/cmd/prometheus-gmail-exporter
+
 lint:
 	pylint-3 gmail-exporter.py
 
