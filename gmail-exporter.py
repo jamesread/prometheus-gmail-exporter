@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 """
 Checks gmail labels for unread messages and exposes the counts via prometheus.
 """
