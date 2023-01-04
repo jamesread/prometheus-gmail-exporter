@@ -44,14 +44,14 @@ Using either `docker` or `podman` will be fine. I like `podman` better, so
 examples are with podman.
 
 ```
-podman run jamesread/prometheus-gmail-exporter:latest -v ~/.prometheus-gmail-exporter/:/root/.prometheus-gmail-exporter/
+podman run -v ~/.prometheus-gmail-exporter/:/home/.prometheus-gmail-exporter/ jamesread/prometheus-gmail-exporter:latest 
 ```
 
 ## Building your own container image
 
 ```
 podman build . -t gmail-exporter
-podman run -v ~/.prometheus-gmail-exporter/:/root/.prometheus-gmail-exporter/ gmail-exporter Label_33
+podman run -v ~/.prometheus-gmail-exporter/:/home/.prometheus-gmail-exporter/ gmail-exporter Label_33
 ```
 
 ## Running via command line
