@@ -6,4 +6,6 @@ RUN dnf -y update && \
 
 COPY gmail-exporter.py /usr/local/sbin/gmail-exporter
 
-ENTRYPOINT [ "/usr/local/sbin/gmail-exporter" ] 
+ENTRYPOINT [ "/usr/local/sbin/gmail-exporter" ]
+
+EXPOSE 8080
