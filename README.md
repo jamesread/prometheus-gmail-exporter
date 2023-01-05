@@ -62,16 +62,19 @@ podman run -v ~/.prometheus-gmail-exporter/:/root/.prometheus-gmail-exporter/ gm
 
 ## Running via command line
 
-### Python3 dependencies
-
-* configargparse
-* oauth2client
-* google-api [ -core, if installed with pip, or -client if yum+rpm ]. 
-* httplib2
-
-Then, simply;
+### Option A) Python3 + PIP
 
 ```
+pip install -r requirements.txt
+./gmail-exporter.py Label_33 INBOX
+```
+
+Options can be found with `--help`.
+
+### Option B) Fedora/Red Hat distributions
+
+```
+* dnf install -y python3-configargparse python3-oauth2client python3-google-api-client python3-httplib2
 ./gmail-exporter.py Label_33 INBOX
 ```
 
