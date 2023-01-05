@@ -26,19 +26,19 @@ gmail_Label_33_unread 0.0
 ## Getting `client_secrets.json`
 
 * Go to the Google Developers API Console: https://console.developers.google.com/apis/credentials
-* Create Credentials -> OAuth Client ID 
+* Create Credentials -> OAuth Client ID
 ** Application Type: Other
 * Click the "down arrow" icon to download your credentials file - `client_secret___.json`.
-* Create a OAuth 2 Consent screen with whatever name and icon you like. The scopes needed are; 
+* Create a OAuth 2 Consent screen with whatever name and icon you like. The scopes needed are;
 
 ![Consent Screen](consentScreenScopes.png)
 
 * Rename your downloaded `client_secret_____.json` to just `client_secret.json`
-  and put it in the directory; `~/.prometheus-gmail-exporter/`. 
+  and put it in the directory; `~/.prometheus-gmail-exporter/`.
 
 ## Running via as a container image
 
-There is a published container in **hub.docker.com**, called `jamesread/prometheus-gmail-exporter:latest`. 
+There is a published container in **hub.docker.com**, called `jamesread/prometheus-gmail-exporter:latest`.
 
 Using either `docker` or `podman` will be fine. I like `podman` better, so
 examples are with podman.
@@ -56,17 +56,20 @@ podman run -v ~/.prometheus-gmail-exporter/:/root/.prometheus-gmail-exporter/ gm
 
 ## Running via command line
 
-### Python3 dependencies
-
-* configargparse
-* oauth2client
-* google-api [ -core, if installed with pip, or -client if yum+rpm ]. 
-* httplib2
-
-Then, simply;
+### Option A) Python3 + PIP
 
 ```
+pip install -r requirements.txt
 ./gmail-exporter.py Label_33 INBOX
 ```
 
-Options can be found with `--help`. 
+Options can be found with `--help`.
+
+### Option B) Fedora/Red Hat distributions
+
+```
+* dnf install -y python3-configargparse python3-oauth2client python3-google-api-client python3-httplib2
+./gmail-exporter.py Label_33 INBOX
+```
+
+Options can be found with `--help`.

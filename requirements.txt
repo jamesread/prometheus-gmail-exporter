@@ -1,0 +1,5 @@
+ConfigArgParse==1.5.3
+google_api_python_client==2.70.0
+google_auth_oauthlib==0.8.0
+httplib2==0.21.0
+prometheus_client==0.15.0
