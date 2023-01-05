@@ -66,7 +66,7 @@ podman run -v ~/.prometheus-gmail-exporter/:/root/.prometheus-gmail-exporter/ gm
 Then, simply;
 
 ```
-./gmail-prometheus.py Label_33 INBOX
+./gmail-exporter.py Label_33 INBOX
 ```
 
 Options can be found with `--help`. 
