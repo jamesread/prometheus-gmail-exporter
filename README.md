@@ -74,7 +74,7 @@ Options can be found with `--help`.
 ### Option B) Fedora/Red Hat distributions
 
 ```
-user@host: dnf install -y python3-configargparse python3-oauth2client python3-google-api-client python3-httplib2 python3-google-auth-oauthlib python3-prometheus_client
+user@host: dnf install -y python3-configargparse python3-oauth2client python3-google-api-client python3-google-auth-oauthlib python3-prometheus_client
 user@host: ./gmail-exporter.py Label_33 INBOX
 ```
 
