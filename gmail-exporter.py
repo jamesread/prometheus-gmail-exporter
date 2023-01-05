@@ -51,8 +51,8 @@ def get_credentials():
         flow = InstalledAppFlow.from_client_secrets_file(args.clientSecretFile, SCOPES)
         flow.user_agent = 'prometheus-gmail-exporter'
 
-        #credentials = flow.run_local_server(port=args.oauthBindPort, bind_addr = args.oauthBindAddr, host = args.oauthHost)
-        credentials = flow.run_local_server()
+        credentials = flow.run_local_server(port=args.oauthBindPort, bind_addr = args.oauthBindAddr, host = args.oauthHost)
+        #credentials = flow.run_local_server()
 
         logging.info("Storing credentials to %s", args.credentialsPath)
 
@@ -258,9 +258,9 @@ if __name__ == '__main__':
     parser.add_argument('--clientSecretFile', default=get_homedir_filepath('client_secret.json'))
     parser.add_argument('--credentialsPath', default=get_homedir_filepath('login_cookie.dat'))
     parser.add_argument("--updateDelaySeconds", type=int, default=300)
-    parser.add_argument("--oauthHost", type=str, default="example.com")
+    parser.add_argument("--oauthHost", type=str, default="localhost")
     parser.add_argument("--oauthBindAddr", type=str, default="0.0.0.0")
-    parser.add_argument("--oauthBindPort", type=int, default=0)
+    parser.add_argument("--oauthBindPort", type=int, default=9090)
     parser.add_argument("--promPort", type=int, default=8080)
     parser.add_argument("--daemonize", action='store_true')
     parser.add_argument("--logLevel", type=int, default = 20)
