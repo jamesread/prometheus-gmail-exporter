@@ -57,7 +57,7 @@ podman run jamesread/prometheus-gmail-exporter:latest -v ~/.prometheus-gmail-exp
 
 ```
 podman build . -t gmail-exporter
-podman run -v ~/.prometheus-gmail-exporter/:/root/.prometheus-gmail-exporter/ gmail-exporter Label_33
+podman run -v ~/.prometheus-gmail-exporter/:/root/.prometheus-gmail-exporter/ gmail-exporter --labels Label_33
 ```
 
 ## Running via command line
@@ -66,7 +66,7 @@ podman run -v ~/.prometheus-gmail-exporter/:/root/.prometheus-gmail-exporter/ gm
 
 ```
 user@host: pip install -r requirements.txt
-user@host: ./gmail-exporter.py Label_33 INBOX
+user@host: ./gmail-exporter.py --labels Label_33 INBOX
 ```
 
 Options can be found with `--help`.
@@ -75,7 +75,7 @@ Options can be found with `--help`.
 
 ```
 user@host: dnf install -y python3-configargparse python3-oauth2client python3-google-api-client python3-httplib2 python3-google-auth-oauthlib python3-prometheus_client
-user@host: ./gmail-exporter.py Label_33 INBOX
+user@host: ./gmail-exporter.py --labels Label_33 INBOX
 ```
 
 Options can be found with `--help`.
