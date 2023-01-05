@@ -23,7 +23,7 @@ gmail_Label_33_total 159.0
 gmail_Label_33_unread 0.0
 ```
 
-## Getting `client_secrets.json`
+## Getting `client_secret.json`
 
 * Go to the Google Developers API Console: https://console.developers.google.com/apis/credentials
 * Create Credentials -> OAuth Client ID
@@ -35,6 +35,12 @@ gmail_Label_33_unread 0.0
 
 * Rename your downloaded `client_secret_____.json` to just `client_secret.json`
   and put it in the directory; `~/.prometheus-gmail-exporter/`.
+
+## Getting `login_cookie.dat`
+
+The `~/.prometheus-gmail-exporter/client_secret.json` (above) which you download from Google (only) identifies (your own instance of) this tool.
+
+The `~/.prometheus-gmail-exporter/login_cookie.dat` secret identifies and gives access to your Gmail account via Google's API. This file cannot be directly downloaded from the Google Cloud Console, but is created by this tool on its first run, via an OAuth-based flow. It will open a local web browser to a Google Login. If this fails (e.g. due to an _"Error 400: redirect_uri_mismatch"),_ then you can _visit an URL to authorize this application,_ which is printed by the tool on its first run. Both will (should) redirect to `http://localhost:9090/` (which has to be added as an _Authorized redirect URI_ to the _OAuth 2.0 Client ID)_ to _complete the authentication flow,_ which then creates this file. The tool will then print a message with a URL to click on to enable the Gmail API.
 
 ## Running via as a container image
 
