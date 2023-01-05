@@ -237,6 +237,8 @@ def main():
     GMAIL_CLIENT = get_gmail_client()
 
     logging.info("prometheus-gmail-exporter started on port %d", args.promPort)
+    logging.info("UID: %s", os.getuid())
+    logging.info("Home directory: %s", os.getenv("HOME"))
     start_http_server(args.promPort)
 
     if args.daemonize:
