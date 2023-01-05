@@ -282,6 +282,9 @@ def main():
     global GMAIL_CLIENT
     GMAIL_CLIENT = get_gmail_client()
 
+    logging.info("prometheus-gmail-exporter started on port %d", args.promPort)
+    start_http_server(args.promPort)
+
     if args.daemonize:
         infinate_update_loop()
     else:
