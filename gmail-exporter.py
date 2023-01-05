@@ -231,14 +231,10 @@ def infinate_update_loop():
         sleep(args.updateDelaySeconds)
 
 def main():
-    logging.getLogger().setLevel(args.logLevel)
-
     global GMAIL_CLIENT
     GMAIL_CLIENT = get_gmail_client()
 
-    logging.info("prometheus-gmail-exporter started on port %d", args.promPort)
-    logging.info("UID: %s", os.getuid())
-    logging.info("Home directory: %s", os.getenv("HOME"))
+    logging.info("Prometheus started on port %d", args.promPort)
     start_http_server(args.promPort)
 
     if args.daemonize:
@@ -246,7 +242,7 @@ def main():
     else:
         update_gauages_from_gmail()
 
-if __name__ == '__main__':
+if __name__ == '__main__': 
     global args
     parser = configargparse.ArgumentParser(default_config_files=[
         get_homedir_filepath('prometheus-gmail-exporter.cfg'),
@@ -267,6 +263,11 @@ if __name__ == '__main__':
     parser.add_argument("--daemonize", action='store_true')
     parser.add_argument("--logLevel", type=int, default = 20)
     args = parser.parse_args()
+
+    logging.getLogger().setLevel(args.logLevel)
+    logging.info("prometheus-gmail-exporter is starting up.")
+    logging.info("UID: %s", os.getuid())
+    logging.info("Home directory: %s", os.getenv("HOME"))
 
     try:
         main()
