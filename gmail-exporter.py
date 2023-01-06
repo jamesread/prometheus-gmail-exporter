@@ -11,14 +11,25 @@ from functools import lru_cache
 
 import configargparse
 
-from prometheus_client import start_http_server, Gauge
+from prometheus_client import make_wsgi_app, Gauge
+
+from flask import Flask, Response
+
+import waitress
+
+from threading import Thread
+
+from werkzeug.middleware.dispatcher import DispatcherMiddleware
 
 from googleapiclient import discovery
 from google_auth_oauthlib.flow import InstalledAppFlow
 from google.oauth2.credentials import Credentials
 
 GMAIL_CLIENT = None
+READINESS = "Waiting for auth"
 THREAD_SENDER_CACHE = {}
+
+app = Flask("prometheus-gmail-exporter")
 
 def get_homedir_filepath(filename):
     config_dir = os.path.join(os.path.expanduser("~"), ".prometheus-gmail-exporter")
@@ -38,6 +49,7 @@ def get_credentials():
     SCOPES = 'https://www.googleapis.com/auth/gmail.readonly '
 
     while not os.path.exists(args.clientSecretFile):
+        set_readiness("Waiting for client secret file")
         logging.fatal("Client secrets file does not exist: %s . You probably need to download this from the Google API console.", args.clientSecretFile)
         sleep(10)
 
@@ -58,6 +70,7 @@ def get_credentials():
     with open(args.credentialsPath, 'w', encoding='utf8') as token:
         token.write(credentials.to_json())
 
+    set_readiness("")
 
     return credentials
 
@@ -83,6 +96,7 @@ def run_flow_oob_deprecated(flow):
             except Exception as e:
                 logging.critical(e)
 
+            set_readiness("Waiting for auth code")
             sleep(10)
 
     try:
@@ -90,6 +104,11 @@ def run_flow_oob_deprecated(flow):
     except Exception as e:
         logging.fatal("Auth failure: %s", str(e))
         sys.exit(1)
+
+    set_readiness("")
+
+    store.put(credential)
+    credential.set_store(store)
 
     return credential
 
@@ -227,17 +246,51 @@ def infinate_update_loop():
         update_gauages_from_gmail()
         sleep(args.updateDelaySeconds)
 
-def main():
+
+def start_waitress():
+    waitress.serve(app, host = "0.0.0.0", port = args.promPort)
+
+def set_readiness(v):
+    global READINESS
+
+    READINESS = v
+
+@app.route("/readyz")
+def readyz():
+    global READINESS
+
+    if READINESS == "":
+        return "OK"
+    else: 
+        return Response(READINESS, status = 503)
+
+@app.route("/")
+def index():
+    return "prometheus-gmail-exporter"
+
+def main(): 
+    logging.getLogger().setLevel(args.logLevel)
+
+    logging.info("prometheus-gmail-exporter starting on port %d", args.promPort)
+
+    # Register prometheus (cannot do this after start())
+    app.wsgi_app = DispatcherMiddleware(app.wsgi_app, {
+        '/metrics': make_wsgi_app()
+    })
+
+    # Get the /readyz endpoint up as quickly as possible
+    t = Thread(target = start_waitress)
+    t.start()
+
     global GMAIL_CLIENT
     GMAIL_CLIENT = get_gmail_client()
-
-    logging.info("Prometheus started on port %d", args.promPort)
-    start_http_server(args.promPort)
-
-    if args.daemonize:
+ 
+    if args.daemonize: 
         infinate_update_loop()
     else:
         update_gauages_from_gmail()
+
+    t.join()
 
 if __name__ == '__main__':
     global args
@@ -257,7 +310,7 @@ if __name__ == '__main__':
     parser.add_argument("--oauthBindAddr", type=str, default="0.0.0.0")
     parser.add_argument("--oauthBindPort", type=int, default=9090)
     parser.add_argument("--promPort", type=int, default=8080)
-    parser.add_argument("--daemonize", action='store_true')
+    parser.add_argument("--daemonize", "-D", action='store_true')
     parser.add_argument("--logLevel", type=int, default = 20)
     args = parser.parse_args()
 
@@ -271,3 +324,4 @@ if __name__ == '__main__':
     except KeyboardInterrupt:
         print("\n") # Most terminals print a Ctrl+C message as well. Looks ugly with our log.
         logging.info("Ctrl+C, bye!")
+        sys.exit(0)
