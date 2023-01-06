@@ -27,7 +27,7 @@ gmail_Label_33_unread 0.0
 
 * Go to the Google Developers API Console: https://console.developers.google.com/apis/credentials
 * Create Credentials -> OAuth Client ID
-** Application Type: Other
+  * Application Type: _Desktop App_ (previously labeled _Other)_ - NOT _Web application_
 * Click the "down arrow" icon to download your credentials file - `client_secret___.json`.
 * Create a OAuth 2 Consent screen with whatever name and icon you like. The scopes needed are;
 
