@@ -36,6 +36,8 @@ gmail_Label_33_unread 0.0
 * Rename your downloaded `client_secret_____.json` to just `client_secret.json`
   and put it in the directory; `~/.prometheus-gmail-exporter/`.
 
+To use this on [Google Accounts with Advanced Protection](https://landing.google.com/advancedprotection/), you cannot use [an _OAuth consent screen_ that is only in _Publishing status = Testing_,](https://support.google.com/cloud/answer/10311615) but must _Publish the App_ and [then have it verified](https://support.google.com/cloud/answer/9110914).
+
 ## Getting `login_cookie.dat`
 
 The `~/.prometheus-gmail-exporter/client_secret.json` (above) which you download from Google (only) identifies (your own instance of) this tool.
@@ -59,7 +61,7 @@ podman run jamesread/prometheus-gmail-exporter:latest -v ~/.prometheus-gmail-exp
 
 ```
 podman build . -t gmail-exporter
-podman run -v ~/.prometheus-gmail-exporter/:/root/.prometheus-gmail-exporter/ gmail-exporter Label_33
+podman run -v ~/.prometheus-gmail-exporter/:/root/.prometheus-gmail-exporter/ gmail-exporter --labels Label_33
 ```
 
 ## Running via command line
@@ -67,8 +69,8 @@ podman run -v ~/.prometheus-gmail-exporter/:/root/.prometheus-gmail-exporter/ gm
 ### Option A) Python3 + PIP
 
 ```
-pip install -r requirements.txt
-./gmail-exporter.py Label_33 INBOX
+user@host: pip install -r requirements.txt
+user@host: ./gmail-exporter.py --labels Label_33 INBOX
 ```
 
 Options can be found with `--help`.
@@ -76,8 +78,8 @@ Options can be found with `--help`.
 ### Option B) Fedora/Red Hat distributions
 
 ```
-* dnf install -y python3-configargparse python3-oauth2client python3-google-api-client python3-httplib2
-./gmail-exporter.py Label_33 INBOX
+user@host: dnf install -y python3-configargparse python3-oauth2client python3-google-api-client python3-google-auth-oauthlib python3-prometheus_client
+user@host: ./gmail-exporter.py --labels Label_33 INBOX
 ```
 
 Options can be found with `--help`.

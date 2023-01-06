@@ -9,7 +9,6 @@ from time import sleep
 import logging
 from functools import lru_cache
 
-import httplib2
 import configargparse
 
 from prometheus_client import start_http_server, Gauge
@@ -19,7 +18,7 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from google.oauth2.credentials import Credentials
 
 GMAIL_CLIENT = None
-THREAD_SENDER_CACHE = dict()
+THREAD_SENDER_CACHE = {}
 
 def get_homedir_filepath(filename):
     config_dir = os.path.join(os.path.expanduser("~"), ".prometheus-gmail-exporter")
@@ -56,18 +55,18 @@ def get_credentials():
 
         logging.info("Storing credentials to %s", args.credentialsPath)
 
-    with open(args.credentialsPath, 'w') as token:
+    with open(args.credentialsPath, 'w', encoding='utf8') as token:
         token.write(credentials.to_json())
 
 
     return credentials
 
-def run_flow(flow, store):
-#    flow.redirect_uri = client.OOB_CALLBACK_URN
-    creds = flow.run_local_server(port=0)
-#    authorize_url = flow.step1_get_authorize_url()
+def run_flow_oob_deprecated(flow):
+    #flow.redirect_uri = client.OOB_CALLBACK_URN
+    flow.run_local_server(port=0)
+    #authorize_url = flow.step1_get_authorize_url()
 
-#    logging.info("Go and authorize at: %s", authorize_url)
+    #logging.info("Go and authorize at: %s", authorize_url)
 
     if sys.stdout.isatty():
         code = input('Enter code:').strip()
@@ -77,7 +76,7 @@ def run_flow(flow, store):
         while True:
             try:
                 if os.path.exists(get_homedir_filepath('auth_code')):
-                    with open(get_homedir_filepath('auth_code'), 'r') as auth_code_file:
+                    with open(get_homedir_filepath('auth_code'), 'r', encoding='utf8') as auth_code_file:
                         code = auth_code_file.read()
                         break
 
@@ -88,7 +87,7 @@ def run_flow(flow, store):
 
     try:
         credential = flow.step2_exchange(code, http=None)
-    except client.FlowExchangeError as e:
+    except Exception as e:
         logging.fatal("Auth failure: %s", str(e))
         sys.exit(1)
 
@@ -201,9 +200,7 @@ def get_thread_messages(thread):
     return thread
 
 def update_sender_gauges_for_label(label):
-    global THREAD_SENDER_CACHE
-
-    senderCounts = dict()
+    senderCounts = {}
 
     for thread in get_all_threads_for_label(label):
         if thread['id'] not in THREAD_SENDER_CACHE:
@@ -231,12 +228,10 @@ def infinate_update_loop():
         sleep(args.updateDelaySeconds)
 
 def main():
-    logging.getLogger().setLevel(args.logLevel)
-
     global GMAIL_CLIENT
     GMAIL_CLIENT = get_gmail_client()
 
-    logging.info("prometheus-gmail-exporter started on port %d", args.promPort)
+    logging.info("Prometheus started on port %d", args.promPort)
     start_http_server(args.promPort)
 
     if args.daemonize:
@@ -265,6 +260,11 @@ if __name__ == '__main__':
     parser.add_argument("--daemonize", action='store_true')
     parser.add_argument("--logLevel", type=int, default = 20)
     args = parser.parse_args()
+
+    logging.getLogger().setLevel(args.logLevel)
+    logging.info("prometheus-gmail-exporter is starting up.")
+    logging.info("UID: %s", os.getuid())
+    logging.info("Home directory: %s", os.getenv("HOME"))
 
     try:
         main()
