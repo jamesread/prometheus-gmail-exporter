@@ -266,8 +266,6 @@ def index():
     return "prometheus-gmail-exporter"
 
 def main():
-    logging.getLogger().setLevel(args.logLevel)
-
     logging.info("prometheus-gmail-exporter starting on port %d", args.promPort)
 
     # Register prometheus (cannot do this after start())
@@ -279,10 +277,11 @@ def main():
     t = Thread(target = start_waitress)
     t.start()
 
+    logging.info("Prometheus started on port %d", args.promPort)
+
     global GMAIL_CLIENT
     GMAIL_CLIENT = get_gmail_client()
 
-    logging.info("prometheus-gmail-exporter started on port %d", args.promPort)
     start_http_server(args.promPort)
 
     if args.daemonize:
@@ -292,7 +291,7 @@ def main():
 
     t.join()
 
-if __name__ == '__main__':
+if __name__ == '__main__': 
     global args
     parser = configargparse.ArgumentParser(default_config_files=[
         get_homedir_filepath('prometheus-gmail-exporter.cfg'),
