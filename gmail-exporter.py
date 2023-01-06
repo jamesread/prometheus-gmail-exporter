@@ -265,13 +265,7 @@ def readyz():
 def index():
     return "prometheus-gmail-exporter"
 
-<<<<<<< HEAD
 def main():
-=======
-def main(): 
-    logging.getLogger().setLevel(args.logLevel)
-
->>>>>>> bbf1d7d (On startup, readiness is waiting for auth)
     logging.info("prometheus-gmail-exporter starting on port %d", args.promPort)
 
     # Register prometheus (cannot do this after start())
@@ -283,7 +277,6 @@ def main():
     t = Thread(target = start_waitress)
     t.start()
 
-<<<<<<< HEAD
     logging.info("Prometheus started on port %d", args.promPort)
 
     global GMAIL_CLIENT
@@ -292,12 +285,6 @@ def main():
     start_http_server(args.promPort)
 
     if args.daemonize:
-=======
-    global GMAIL_CLIENT
-    GMAIL_CLIENT = get_gmail_client()
- 
-    if args.daemonize: 
->>>>>>> bbf1d7d (On startup, readiness is waiting for auth)
         infinate_update_loop()
     else:
         update_gauages_from_gmail()
