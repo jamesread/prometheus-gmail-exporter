@@ -291,7 +291,7 @@ def main():
 
     t.join()
 
-if __name__ == '__main__': 
+if __name__ == '__main__':
     global args
     parser = configargparse.ArgumentParser(default_config_files=[
         get_homedir_filepath('prometheus-gmail-exporter.cfg'),
