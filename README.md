@@ -36,6 +36,8 @@ gmail_Label_33_unread 0.0
 * Rename your downloaded `client_secret_____.json` to just `client_secret.json`
   and put it in the directory; `~/.prometheus-gmail-exporter/`.
 
+To use this on [Google Accounts with Advanced Protection](https://landing.google.com/advancedprotection/), you cannot use [an _OAuth consent screen_ that is only in _Publishing status = Testing_,](https://support.google.com/cloud/answer/10311615) but must _Publish the App_ and [then have it verified](https://support.google.com/cloud/answer/9110914).
+
 ## Getting `login_cookie.dat`
 
 The `~/.prometheus-gmail-exporter/client_secret.json` (above) which you download from Google (only) identifies (your own instance of) this tool.
