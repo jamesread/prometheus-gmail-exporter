@@ -8,6 +8,7 @@ import sys
 from time import sleep
 import logging
 from functools import lru_cache
+from threading import Thread
 
 import configargparse
 
@@ -16,8 +17,6 @@ from prometheus_client import make_wsgi_app, Gauge
 from flask import Flask, Response
 
 import waitress
-
-from threading import Thread
 
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 
@@ -107,8 +106,8 @@ def run_flow_oob_deprecated(flow):
 
     set_readiness("")
 
-    store.put(credential)
-    credential.set_store(store)
+    #store.put(credential)
+    #credential.set_store(store)
 
     return credential
 
@@ -257,18 +256,16 @@ def set_readiness(v):
 
 @app.route("/readyz")
 def readyz():
-    global READINESS
-
     if READINESS == "":
         return "OK"
-    else: 
-        return Response(READINESS, status = 503)
+    
+    return Response(READINESS, status = 503)
 
 @app.route("/")
 def index():
     return "prometheus-gmail-exporter"
 
-def main(): 
+def main():
     logging.getLogger().setLevel(args.logLevel)
 
     logging.info("prometheus-gmail-exporter starting on port %d", args.promPort)
@@ -284,8 +281,8 @@ def main():
 
     global GMAIL_CLIENT
     GMAIL_CLIENT = get_gmail_client()
- 
-    if args.daemonize: 
+
+    if args.daemonize:
         infinate_update_loop()
     else:
         update_gauages_from_gmail()
