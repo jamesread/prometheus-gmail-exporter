@@ -231,8 +231,11 @@ def main():
     global GMAIL_CLIENT
     GMAIL_CLIENT = get_gmail_client()
 
-    logging.info("Prometheus started on port %d", args.promPort)
+    logging.info("Got gmail client successfully")
+    
     start_http_server(args.promPort)
+
+    logging.info("Prometheus started on port %d", args.promPort)
 
     if args.daemonize:
         infinate_update_loop()
@@ -263,6 +266,7 @@ if __name__ == '__main__':
 
     logging.getLogger().setLevel(args.logLevel)
     logging.info("prometheus-gmail-exporter is starting up.")
+    logging.info("args (from config, and flags): %s", args)
     logging.info("UID: %s", os.getuid())
     logging.info("Home directory: %s", os.getenv("HOME"))
 
