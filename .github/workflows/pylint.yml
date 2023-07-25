@@ -25,4 +25,5 @@ jobs:
 
       - name: Analysing the code with pylint
         run: |
+          pylint --version
           pylint $(git ls-files '*.py')

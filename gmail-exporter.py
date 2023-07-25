@@ -232,7 +232,7 @@ def main():
     GMAIL_CLIENT = get_gmail_client()
 
     logging.info("Got gmail client successfully")
-    
+
     start_http_server(args.promPort)
 
     logging.info("Prometheus started on port %d", args.promPort)
