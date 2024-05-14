@@ -29,7 +29,7 @@ To allow this app to access your gmail, it needs a `client_secret.json` file, an
 
 ### Getting `client_secret.json`
 
-NOTE: Google frequently changes it's API, Web interface, and similar without much notice. These instructions were last tested and validated on 2024-04-14.
+**NOTE**: Google frequently changes it's API, Web interface, and similar without much notice. These instructions were last tested and validated on 2024-04-14 - if the instructions or screenshots don't match what you're seeing, it would be really helpful if you could raise a GitHub issue on this repository and report it. Thanks!
 
 * Go to the Google Developers API Console: https://console.developers.google.com/apis/credentials
 * In the sidebar, select **Credentials**. 
@@ -61,7 +61,7 @@ NOTE: Google frequently changes it's API, Web interface, and similar without muc
 * Rename your downloaded `client_secret_____.json` to just `client_secret.json`
   and put it in the directory; `~/.prometheus-gmail-exporter/`.
 
-NOTE: To use this on [Google Accounts with Advanced Protection](https://landing.google.com/advancedprotection/), you cannot use [an _OAuth consent screen_ that is only in _Publishing status = Testing_,](https://support.google.com/cloud/answer/10311615) but must _Publish the App_ and [then have it verified](https://support.google.com/cloud/answer/9110914).
+**NOTE**: To use this on [Google Accounts with Advanced Protection](https://landing.google.com/advancedprotection/), you cannot use [an _OAuth consent screen_ that is only in _Publishing status = Testing_,](https://support.google.com/cloud/answer/10311615) but must _Publish the App_ and [then have it verified](https://support.google.com/cloud/answer/9110914).
 
 ### Getting `login_cookie.dat`
 
