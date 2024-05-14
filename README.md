@@ -21,6 +21,20 @@ gmail_Label_33_total 159.0
 # HELP gmail_Label_33_unread >/0. Triage Unread
 # TYPE gmail_Label_33_unread gauge
 gmail_Label_33_unread 0.0
+# HELP gmail_fooquery fooquery
+# TYPE gmail_fooquery gauge
+gmail_fooquery 201.0
+```
+
+## Example configuration file (`prometheus-gmail-exporter.yaml`)
+
+```yaml
+labels:
+  - Label_33
+
+customQueries:
+  - name: fooquery
+    query: "important in:inbox"
 ```
 
 ## Setup API access
