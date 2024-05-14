@@ -25,6 +25,8 @@ gmail_Label_33_unread 0.0
 
 ## Setup API access
 
+To allow this app to access your gmail, it needs a `client_secret.json` file, and a `login_cookie.dat`. The instructions below explain how to set this up.
+
 ### Getting `client_secret.json`
 
 NOTE: Google frequently changes it's API, Web interface, and similar without much notice. These instructions were last tested and validated on 2024-04-14.
