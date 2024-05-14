@@ -10,6 +10,7 @@ import logging
 from functools import lru_cache
 
 import configargparse
+import yaml
 
 from prometheus_client import start_http_server, Gauge
 
@@ -132,6 +133,15 @@ def get_gauge_for_label(name, desc, labels = None):
 
     return gauge_collection[name]
 
+def get_gauge_for_query(name):
+    print(gauge_collection)
+
+    if name not in gauge_collection:
+        gauge = Gauge('gmail_' + name, name, [])
+        gauge_collection[name] = gauge
+
+    return gauge_collection[name]
+
 def update_gauages_from_gmail(*unused_arguments_needed_for_scheduler):
     logging.info("Updating gmail metrics - started")
 
@@ -153,6 +163,24 @@ def update_gauages_from_gmail(*unused_arguments_needed_for_scheduler):
             # after startup, 404 exceptions are thrown.
             #
             # Occsionally, the gmail API will throw garbage, too. Hence the try/catch.
+            logging.error("Error: %s", e)
+
+    logging.info("Updating gmail metrics - complete")
+
+    update_gauages_custom_message_queries()
+
+def update_gauages_custom_message_queries():
+    logging.info("Updating custom message queries - starting (" + str(len(args.customQueries)) + ")")
+
+    for customQuery in args.customQueries:
+        logging.info("Updating custom message queries: " + customQuery['name'])
+
+        try:
+            search_result = GMAIL_CLIENT.users().messages().list(q=customQuery['query'], userId='me').execute()
+
+            gauge = get_gauge_for_query(customQuery['name'])
+            gauge.set(search_result['resultSizeEstimate'])
+        except Exception as e:
             logging.error("Error: %s", e)
 
     logging.info("Updating gmail metrics - complete")
@@ -260,8 +288,9 @@ if __name__ == '__main__':
     parser.add_argument("--oauthBindAddr", type=str, default="0.0.0.0")
     parser.add_argument("--oauthBindPort", type=int, default=9090)
     parser.add_argument("--promPort", type=int, default=8080)
-    parser.add_argument("--daemonize", action='store_true')
+    parser.add_argument("--daemonize", "-d", action='store_true')
     parser.add_argument("--logLevel", type=int, default = 20)
+    parser.add_argument("--customQueries", nargs='*', type=yaml.safe_load)
     args = parser.parse_args()
 
     logging.getLogger().setLevel(args.logLevel)
