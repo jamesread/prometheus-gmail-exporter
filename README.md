@@ -41,7 +41,7 @@ To allow this app to access your gmail, it needs a `client_secret.json` file, an
   * **Application Type:** _Desktop App_ (previously labeled _Other_, do not choose _Web application_).
   * **Name:** prometheus-gmail-exporter (or a name that you prefer)
   * Finally, click the blue **Create** button.
-* On the OAuth client created popup window
+* On the **OAuth client created** popup window;
   * Take a copy of your **Client ID** and save it in a "secure text file" somewhere!
   * Click the "Download JSON" link to get your client_secrets file, named something like - `client_secret_1234.apps.googleusercontent.com__.json`.
 
@@ -71,7 +71,11 @@ The `~/.prometheus-gmail-exporter/login_cookie.dat` secret file identifies YOU, 
 
 To run this tool on a headless server, you may want to first create the `login_cookie.dat` on a Desktop/Workstation where a web browser is a available, and then move it to the headless server, perhaps by mounting this file from some form of secret provider into the container. (See also [issue #9](https://github.com/jamesread/prometheus-gmail-exporter/issues/9) for more background.)
 
-## Running via as a container image
+## Troubleshooting: `accessNotConfigured`
+
+The GMail API is probably not enabled in your account yet. You can enable it by following instructions here; https://developers.google.com/workspace/guides/enable-apis . 
+
+## Run as a container image
 
 There is a published container in **hub.docker.com**, called `jamesread/prometheus-gmail-exporter:latest`.
 
@@ -79,10 +83,10 @@ Using either `docker` or `podman` will be fine. I like `podman` better, so
 examples are with podman.
 
 ```
-podman run jamesread/prometheus-gmail-exporter:latest -v ~/.prometheus-gmail-exporter/:/root/.prometheus-gmail-exporter/
+podman run ghcr.io/jamesread/prometheus-gmail-exporter:latest -v ~/.prometheus-gmail-exporter/:/root/.prometheus-gmail-exporter/
 ```
 
-## Building your own container image
+## Build your own container image
 
 ```
 podman build . -t gmail-exporter
