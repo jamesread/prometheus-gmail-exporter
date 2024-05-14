@@ -40,8 +40,8 @@ NOTE: Google frequently changes it's API, Web interface, and similar without muc
   * **Name:** prometheus-gmail-exporter (or a name that you prefer)
   * Finally, click the blue **Create** button.
 * On the OAuth client created popup window
-** Take a copy of your **Client ID** and save it in a "secure text file" somewhere!
-** Click the "Downlaod JSON" link to get your client_secrets file, named something like - `client_secret_1234.apps.googleusercontent.com__.json`.
+  * Take a copy of your **Client ID** and save it in a "secure text file" somewhere!
+  * Click the "Download JSON" link to get your client_secrets file, named something like - `client_secret_1234.apps.googleusercontent.com__.json`.
 
 ### Create a OAuth 2 Content screen
 
