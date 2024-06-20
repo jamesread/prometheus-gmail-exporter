@@ -8,11 +8,18 @@ import sys
 from time import sleep
 import logging
 from functools import lru_cache
+from threading import Thread
 
 import configargparse
 import yaml
 
-from prometheus_client import start_http_server, Gauge
+from prometheus_client import make_wsgi_app, Gauge
+
+from flask import Flask, Response
+
+from werkzeug.middleware.dispatcher import DispatcherMiddleware
+
+import waitress
 
 from googleapiclient import discovery
 from google_auth_oauthlib.flow import InstalledAppFlow
@@ -20,6 +27,9 @@ from google.oauth2.credentials import Credentials
 
 GMAIL_CLIENT = None
 THREAD_SENDER_CACHE = {}
+READINESS = "STARTUP"
+
+app = Flask('prometheus-gmail-exporter')
 
 def get_homedir_filepath(filename):
     config_dir = os.path.join(os.path.expanduser("~"), ".prometheus-gmail-exporter")
@@ -143,6 +153,8 @@ def get_gauge_for_query(name):
     return gauge_collection[name]
 
 def update_gauages_from_gmail(*unused_arguments_needed_for_scheduler):
+    global READINESS
+
     logging.info("Updating gmail metrics - started")
 
     for label in get_labels():
@@ -158,6 +170,7 @@ def update_gauages_from_gmail(*unused_arguments_needed_for_scheduler):
             if label['id'] in args.labelsSenderCount:
                 update_sender_gauges_for_label(label_info['id'])
 
+            READINESS = ""
         except Exception as e:
             # eg, if this script is started with a label that exists, that is then deleted
             # after startup, 404 exceptions are thrown.
@@ -169,11 +182,12 @@ def update_gauages_from_gmail(*unused_arguments_needed_for_scheduler):
 
     update_gauages_custom_message_queries()
 
+
 def update_gauages_custom_message_queries():
-    logging.info("Updating custom message queries - starting (" + str(len(args.customQueries)) + ")")
+    logging.info("Updating custom message queries - starting (%s)", str(len(args.customQueries)))
 
     for customQuery in args.customQueries:
-        logging.info("Updating custom message queries: " + customQuery['name'])
+        logging.info("Updating custom message queries: %s", customQuery['name'])
 
         try:
             search_result = GMAIL_CLIENT.users().messages().list(q=customQuery['query'], userId='me').execute()
@@ -255,13 +269,32 @@ def infinate_update_loop():
         update_gauages_from_gmail()
         sleep(args.updateDelaySeconds)
 
+@app.route('/readyz')
+def readyz():
+    if READINESS == "":
+        return "OK"
+
+    return Response(READINESS, status=200)
+
+@app.route('/')
+def index():
+    return "prometheus-gmail-exporter"
+
+def start_waitress():
+    waitress.serve(app, host = '0.0.0.0', port = args.promPort)
+
 def main():
     global GMAIL_CLIENT
     GMAIL_CLIENT = get_gmail_client()
 
     logging.info("Got gmail client successfully")
 
-    start_http_server(args.promPort)
+    app.wsgi_app = DispatcherMiddleware(app.wsgi_app, {
+        '/metrics': make_wsgi_app()
+    })
+
+    t = Thread(target = start_waitress)
+    t.start()
 
     logging.info("Prometheus started on port %d", args.promPort)
 
@@ -271,7 +304,6 @@ def main():
         update_gauages_from_gmail()
 
 if __name__ == '__main__':
-    global args
     parser = configargparse.ArgumentParser(default_config_files=[
         get_homedir_filepath('prometheus-gmail-exporter.cfg'),
         get_homedir_filepath('prometheus-gmail-exporter.yaml'),
@@ -291,6 +323,8 @@ if __name__ == '__main__':
     parser.add_argument("--daemonize", "-d", action='store_true')
     parser.add_argument("--logLevel", type=int, default = 20)
     parser.add_argument("--customQueries", nargs='*', type=yaml.safe_load)
+
+    global args
     args = parser.parse_args()
 
     logging.getLogger().setLevel(args.logLevel)
