@@ -154,8 +154,6 @@ def get_gauge_for_query(name):
     return gauge_collection[name]
 
 def update_gauages_from_gmail(*unused_arguments_needed_for_scheduler):
-    global READINESS
-
     logging.info("Updating gmail metrics - started")
 
     for label in get_labels():
@@ -171,7 +169,6 @@ def update_gauages_from_gmail(*unused_arguments_needed_for_scheduler):
             if label['id'] in args.labelsSenderCount:
                 update_sender_gauges_for_label(label_info['id'])
 
-            READINESS = ""
         except Exception as e:
             # eg, if this script is started with a label that exists, that is then deleted
             # after startup, 404 exceptions are thrown.
@@ -262,6 +259,12 @@ def update_sender_gauges_for_label(label):
         g = get_gauge_for_label(label + '_sender', 'Label sender info', ['sender'])
         g.labels(sender=sender).set(messageCount)
 
+def set_readiness(message):
+    global READINESS
+    READINESS = message
+
+    logging.info("Readiness: %s", message)
+
 def get_gmail_client():
     return discovery.build('gmail', 'v1', credentials = get_credentials())
 
@@ -313,20 +316,25 @@ def initArgs():
     global args
     args = parser.parse_args()
 
-    logging.getLogger().setLevel(args.logLevel)
-    logging.info("prometheus-gmail-exporter is starting up.")
     logVersion()
+    logging.getLogger().setLevel(args.logLevel)
     logging.info("args (from config, and flags): %s", args)
     logging.info("UID: %s", os.getuid())
     logging.info("Home directory: %s", os.getenv("HOME"))
 
 def main():
+    logging.getLogger().setLevel("INFO")
+    logging.info("prometheus-gmail-exporter is starting up.")
+
+    set_readiness("MAIN")
     initArgs()
 
     global GMAIL_CLIENT
     GMAIL_CLIENT = get_gmail_client()
 
     logging.info("Got gmail client successfully")
+
+    set_readiness("")
 
     app.wsgi_app = DispatcherMiddleware(app.wsgi_app, {
         '/metrics': make_wsgi_app()

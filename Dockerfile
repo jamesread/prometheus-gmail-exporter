@@ -15,6 +15,7 @@ RUN dnf -y update && \
 
 COPY gmail-exporter.py /usr/local/sbin/gmail-exporter
 
+ENV GITHUB_SHA $GITHUB_SHA
 RUN mkdir /app
 RUN $GITHUB_SHA > /app/VERSION
 WORKDIR /app
