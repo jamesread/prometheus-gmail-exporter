@@ -47,6 +47,8 @@ def get_credentials():
     the OAuth2 flow is completed to obtain the new credentials.
     """
 
+    set_readiness("GET_CREDENTIALS")
+
     SCOPES = 'https://www.googleapis.com/auth/gmail.readonly '
 
     while not os.path.exists(args.clientSecretFile):
@@ -70,6 +72,7 @@ def get_credentials():
     with open(args.credentialsPath, 'w', encoding='utf8') as token:
         token.write(credentials.to_json())
 
+    set_readiness("GOT_CREDENTIALS")
 
     return credentials
 
