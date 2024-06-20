@@ -283,6 +283,11 @@ def index():
 def start_waitress():
     waitress.serve(app, host = '0.0.0.0', port = args.promPort)
 
+def logVersion():
+    if os.path.exists("VERSION"):
+        with open("VERSION", 'r', encoding='utf8') as version_file:
+            logging.info("Version: %s", version_file.read().strip())
+
 def main():
     global GMAIL_CLIENT
     GMAIL_CLIENT = get_gmail_client()
@@ -329,6 +334,7 @@ if __name__ == '__main__':
 
     logging.getLogger().setLevel(args.logLevel)
     logging.info("prometheus-gmail-exporter is starting up.")
+    logVersion()
     logging.info("args (from config, and flags): %s", args)
     logging.info("UID: %s", os.getuid())
     logging.info("Home directory: %s", os.getenv("HOME"))
