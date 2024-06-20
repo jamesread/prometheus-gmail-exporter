@@ -58,11 +58,14 @@ def get_credentials():
     credentials = None
 
     if os.path.exists(args.credentialsPath):
+        logging.info("Loading credentials from %s", args.credentialsPath)
         credentials = Credentials.from_authorized_user_file(args.credentialsPath, SCOPES)
 
     if not credentials or not credentials.valid:
         flow = InstalledAppFlow.from_client_secrets_file(args.clientSecretFile, SCOPES)
         flow.user_agent = 'prometheus-gmail-exporter'
+
+        logging.info("Running authentication flow, oauth port: %d", args.oauthBindPort)
 
         credentials = flow.run_local_server(port=args.oauthBindPort, bind_addr = args.oauthBindAddr, host = args.oauthHost)
         #credentials = flow.run_local_server()

@@ -17,7 +17,7 @@ COPY gmail-exporter.py /usr/local/sbin/gmail-exporter
 
 ENV GITHUB_SHA=$GITHUB_SHA
 RUN mkdir /app
-RUN $GITHUB_SHA > /app/VERSION
+RUN echo "$GITHUB_SHA:`date`" > /app/VERSION
 WORKDIR /app
 
 ENTRYPOINT [ "/usr/local/sbin/gmail-exporter" ]
