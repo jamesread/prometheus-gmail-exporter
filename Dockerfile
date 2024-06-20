@@ -15,6 +15,10 @@ RUN dnf -y update && \
 
 COPY gmail-exporter.py /usr/local/sbin/gmail-exporter
 
+RUN mkdir /app
+RUN $GITHUB_SHA > /app/VERSION
+WORKDIR /app
+
 ENTRYPOINT [ "/usr/local/sbin/gmail-exporter" ]
 
 EXPOSE 8080

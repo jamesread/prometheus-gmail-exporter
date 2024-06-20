@@ -30,6 +30,7 @@ THREAD_SENDER_CACHE = {}
 READINESS = "STARTUP"
 
 app = Flask('prometheus-gmail-exporter')
+args = None
 
 def get_homedir_filepath(filename):
     config_dir = os.path.join(os.path.expanduser("~"), ".prometheus-gmail-exporter")
@@ -288,27 +289,7 @@ def logVersion():
         with open("VERSION", 'r', encoding='utf8') as version_file:
             logging.info("Version: %s", version_file.read().strip())
 
-def main():
-    global GMAIL_CLIENT
-    GMAIL_CLIENT = get_gmail_client()
-
-    logging.info("Got gmail client successfully")
-
-    app.wsgi_app = DispatcherMiddleware(app.wsgi_app, {
-        '/metrics': make_wsgi_app()
-    })
-
-    t = Thread(target = start_waitress)
-    t.start()
-
-    logging.info("Prometheus started on port %d", args.promPort)
-
-    if args.daemonize:
-        infinate_update_loop()
-    else:
-        update_gauages_from_gmail()
-
-if __name__ == '__main__':
+def initArgs():
     parser = configargparse.ArgumentParser(default_config_files=[
         get_homedir_filepath('prometheus-gmail-exporter.cfg'),
         get_homedir_filepath('prometheus-gmail-exporter.yaml'),
@@ -339,6 +320,29 @@ if __name__ == '__main__':
     logging.info("UID: %s", os.getuid())
     logging.info("Home directory: %s", os.getenv("HOME"))
 
+def main():
+    initArgs()
+
+    global GMAIL_CLIENT
+    GMAIL_CLIENT = get_gmail_client()
+
+    logging.info("Got gmail client successfully")
+
+    app.wsgi_app = DispatcherMiddleware(app.wsgi_app, {
+        '/metrics': make_wsgi_app()
+    })
+
+    t = Thread(target = start_waitress)
+    t.start()
+
+    logging.info("Prometheus started on port %d", args.promPort)
+
+    if args.daemonize:
+        infinate_update_loop()
+    else:
+        update_gauages_from_gmail()
+
+if __name__ == '__main__':
     try:
         main()
     except KeyboardInterrupt:
