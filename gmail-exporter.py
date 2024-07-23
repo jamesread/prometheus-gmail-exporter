@@ -66,6 +66,7 @@ def get_credentials():
         flow.user_agent = 'prometheus-gmail-exporter'
 
         logging.info("Running authentication flow, oauth port: %d", args.oauthBindPort)
+        logging.info("Please go to the following URL: %s", flow.authorization_url(prompt='select_account'))
 
         credentials = flow.run_local_server(port=args.oauthBindPort, bind_addr = args.oauthBindAddr, host = args.oauthHost)
         #credentials = flow.run_local_server()
