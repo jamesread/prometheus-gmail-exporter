@@ -15,7 +15,7 @@ import yaml
 
 from prometheus_client import make_wsgi_app, Gauge
 
-from flask import Flask, Response, redirect, url_for, request, session
+from flask import Flask, Response, request, session
 
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 
@@ -62,8 +62,8 @@ def get_credentials():
     if os.path.exists(args.credentialsPath):
         logging.info("Loading credentials from %s", args.credentialsPath)
         credentials = Credentials.from_authorized_user_file(args.credentialsPath, SCOPES)
- 
-    return credential
+
+    return credentials
 
 @lru_cache(maxsize=1)
 def get_labels():
