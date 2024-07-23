@@ -15,21 +15,25 @@ import yaml
 
 from prometheus_client import make_wsgi_app, Gauge
 
-from flask import Flask, Response
+from flask import Flask, Response, redirect, url_for, request, session
 
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 
 import waitress
 
 from googleapiclient import discovery
-from google_auth_oauthlib.flow import InstalledAppFlow
+from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials
 
 GMAIL_CLIENT = None
 THREAD_SENDER_CACHE = {}
 READINESS = "STARTUP"
+SCOPES = 'https://www.googleapis.com/auth/gmail.readonly '
 
-app = Flask('prometheus-gmail-exporter')
+authComplete = False
+flaskapp = Flask('prometheus-gmail-exporter')
+flaskapp.secret_key = os.urandom(24)
+gauge_collection = {}
 args = None
 
 def get_homedir_filepath(filename):
@@ -49,8 +53,6 @@ def get_credentials():
 
     set_readiness("GET_CREDENTIALS")
 
-    SCOPES = 'https://www.googleapis.com/auth/gmail.readonly '
-
     while not os.path.exists(args.clientSecretFile):
         logging.fatal("Client secrets file does not exist: %s . You probably need to download this from the Google API console.", args.clientSecretFile)
         sleep(10)
@@ -60,56 +62,7 @@ def get_credentials():
     if os.path.exists(args.credentialsPath):
         logging.info("Loading credentials from %s", args.credentialsPath)
         credentials = Credentials.from_authorized_user_file(args.credentialsPath, SCOPES)
-
-    if not credentials or not credentials.valid:
-        flow = InstalledAppFlow.from_client_secrets_file(args.clientSecretFile, SCOPES)
-        flow.user_agent = 'prometheus-gmail-exporter'
-
-        logging.info("Running authentication flow, oauth port: %d", args.oauthBindPort)
-        logging.info("Please go to the following URL: %s", flow.authorization_url(prompt='select_account'))
-
-        credentials = flow.run_local_server(port=args.oauthBindPort, bind_addr = args.oauthBindAddr, host = args.oauthHost)
-        #credentials = flow.run_local_server()
-
-        logging.info("Storing credentials to %s", args.credentialsPath)
-
-    with open(args.credentialsPath, 'w', encoding='utf8') as token:
-        token.write(credentials.to_json())
-
-    set_readiness("GOT_CREDENTIALS")
-
-    return credentials
-
-def run_flow_oob_deprecated(flow):
-    #flow.redirect_uri = client.OOB_CALLBACK_URN
-    flow.run_local_server(port=0)
-    #authorize_url = flow.step1_get_authorize_url()
-
-    #logging.info("Go and authorize at: %s", authorize_url)
-
-    if sys.stdout.isatty():
-        code = input('Enter code:').strip()
-    else:
-        logging.info("Waiting for code at %s", get_homedir_filepath('auth_code'))
-
-        while True:
-            try:
-                if os.path.exists(get_homedir_filepath('auth_code')):
-                    with open(get_homedir_filepath('auth_code'), 'r', encoding='utf8') as auth_code_file:
-                        code = auth_code_file.read()
-                        break
-
-            except Exception as e:
-                logging.critical(e)
-
-            sleep(10)
-
-    try:
-        credential = flow.step2_exchange(code, http=None)
-    except Exception as e:
-        logging.fatal("Auth failure: %s", str(e))
-        sys.exit(1)
-
+ 
     return credential
 
 @lru_cache(maxsize=1)
@@ -139,8 +92,6 @@ def get_labels():
 
     return labels
 
-gauge_collection = {}
-
 def get_gauge_for_label(name, desc, labels = None):
     if labels is None:
         labels = []
@@ -161,6 +112,13 @@ def get_gauge_for_query(name):
     return gauge_collection[name]
 
 def update_gauages_from_gmail(*unused_arguments_needed_for_scheduler):
+    global GMAIL_CLIENT
+    GMAIL_CLIENT = get_gmail_client()
+
+    logging.info("Got gmail client successfully")
+
+    set_readiness("")
+
     logging.info("Updating gmail metrics - started")
 
     for label in get_labels():
@@ -186,7 +144,6 @@ def update_gauages_from_gmail(*unused_arguments_needed_for_scheduler):
     logging.info("Updating gmail metrics - complete")
 
     update_gauages_custom_message_queries()
-
 
 def update_gauages_custom_message_queries():
     logging.info("Updating custom message queries - starting (%s)", str(len(args.customQueries)))
@@ -273,6 +230,10 @@ def set_readiness(message):
     logging.info("Readiness: %s", message)
 
 def get_gmail_client():
+    while not authComplete:
+        logging.info("Waiting for credentials, sleeping for %d seconds", args.updateDelaySeconds)
+        sleep(args.updateDelaySeconds)
+
     return discovery.build('gmail', 'v1', credentials = get_credentials())
 
 def infinate_update_loop():
@@ -280,19 +241,64 @@ def infinate_update_loop():
         update_gauages_from_gmail()
         sleep(args.updateDelaySeconds)
 
-@app.route('/readyz')
+
+def getFlow():
+    flow = Flow.from_client_secrets_file(
+        args.clientSecretFile,
+        SCOPES,
+        redirect_uri=args.oauthHost + '/oauth2callback'
+    )
+
+    flow.user_agent = 'prometheus-gmail-exporter'
+
+    return flow
+
+@flaskapp.route('/')
+def index():
+    ret = "<h1>prometheus-gmail-exporter</h1><br />"
+
+    if not authComplete:
+        flow = getFlow()
+
+        authorization_url, state = flow.authorization_url()
+        session['state'] = state
+
+        ret += f'<a href="{authorization_url}">Login</a>'
+
+    return ret
+
+@flaskapp.route('/oauth2callback')
+def oauth2callback():
+    flow = getFlow()
+    flow.fetch_token(authorization_response = request.url)
+
+    state = session['state']
+
+    if not request.args.get('state') == state:
+        return 'Error: state mismatch', 400
+
+    credentials = flow.credentials
+
+    logging.info("Storing credentials to %s", args.credentialsPath)
+
+    with open(args.credentialsPath, 'w', encoding='utf8') as token:
+        token.write(credentials.to_json())
+
+    set_readiness("GOT_CREDENTIALS")
+
+    return f'Credentials: {credentials.token}'
+
+@flaskapp.route('/readyz')
 def readyz():
     if READINESS == "":
         return "OK"
 
     return Response(READINESS, status=200)
 
-@app.route('/')
-def index():
-    return "prometheus-gmail-exporter"
-
 def start_waitress():
-    waitress.serve(app, host = '0.0.0.0', port = args.promPort)
+    logging.info("Starting on port %d", args.promPort)
+
+    waitress.serve(flaskapp, host = '0.0.0.0', port = args.promPort)
 
 def logVersion():
     if os.path.exists("VERSION"):
@@ -336,21 +342,12 @@ def main():
     set_readiness("MAIN")
     initArgs()
 
-    global GMAIL_CLIENT
-    GMAIL_CLIENT = get_gmail_client()
-
-    logging.info("Got gmail client successfully")
-
-    set_readiness("")
-
-    app.wsgi_app = DispatcherMiddleware(app.wsgi_app, {
+    flaskapp.wsgi_app = DispatcherMiddleware(flaskapp.wsgi_app, {
         '/metrics': make_wsgi_app()
     })
 
     t = Thread(target = start_waitress)
     t.start()
-
-    logging.info("Prometheus started on port %d", args.promPort)
 
     if args.daemonize:
         infinate_update_loop()
