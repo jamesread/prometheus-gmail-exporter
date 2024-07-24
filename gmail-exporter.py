@@ -256,6 +256,7 @@ def getFlow():
 @flaskapp.route('/')
 def index():
     ret = "<h1>prometheus-gmail-exporter</h1><br />"
+    ret += "State: " + READINESS + "<br />"
 
     if not authComplete:
         flow = getFlow()
