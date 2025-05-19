@@ -32,8 +32,6 @@ THREAD_SENDER_CACHE = dict()
 
 app = Flask("prometheus-gmail-exporter")
 
-app = Flask("prometheus-gmail-exporter")
-
 def get_homedir_filepath(filename):
     config_dir = os.path.join(os.path.expanduser("~"), ".prometheus-gmail-exporter")
 
