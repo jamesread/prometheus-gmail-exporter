@@ -18,6 +18,8 @@ from flask import Flask, Response
 
 import waitress
 
+from threading import Thread
+
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 
 from googleapiclient import discovery
@@ -26,7 +28,9 @@ from google.oauth2.credentials import Credentials
 
 GMAIL_CLIENT = None
 READINESS = "Waiting for auth"
-THREAD_SENDER_CACHE = {}
+THREAD_SENDER_CACHE = dict()
+
+app = Flask("prometheus-gmail-exporter")
 
 app = Flask("prometheus-gmail-exporter")
 
@@ -78,6 +82,10 @@ def run_flow_oob_deprecated(flow):
     flow.run_local_server(port=0)
     #authorize_url = flow.step1_get_authorize_url()
 
+def run_flow(flow, store):
+    flow.redirect_uri = 'http://'
+    authorize_url = flow.step1_get_authorize_url()
+
     #logging.info("Go and authorize at: %s", authorize_url)
 
     if sys.stdout.isatty():
@@ -100,14 +108,14 @@ def run_flow_oob_deprecated(flow):
 
     try:
         credential = flow.step2_exchange(code, http=None)
-    except Exception as e:
+    except client.FlowExchangeError as e:
         logging.fatal("Auth failure: %s", str(e))
         sys.exit(1)
 
     set_readiness("")
 
-    #store.put(credential)
-    #credential.set_store(store)
+    store.put(credential)
+    credential.set_store(store)
 
     return credential
 
@@ -246,7 +254,7 @@ def infinate_update_loop():
         sleep(args.updateDelaySeconds)
 
 
-def start_waitress():
+def start_http_server():
     waitress.serve(app, host = "0.0.0.0", port = args.promPort)
 
 def set_readiness(v):
@@ -256,9 +264,11 @@ def set_readiness(v):
 
 @app.route("/readyz")
 def readyz():
+    global READINESS
+
     if READINESS == "":
         return "OK"
-    
+
     return Response(READINESS, status = 503)
 
 @app.route("/")
@@ -266,6 +276,7 @@ def index():
     return "prometheus-gmail-exporter"
 
 def main():
+    logging.getLogger().setLevel(args.logLevel)
     logging.info("prometheus-gmail-exporter starting on port %d", args.promPort)
 
     # Register prometheus (cannot do this after start())
@@ -274,7 +285,7 @@ def main():
     })
 
     # Get the /readyz endpoint up as quickly as possible
-    t = Thread(target = start_waitress)
+    t = Thread(target = start_http_server)
     t.start()
 
     logging.info("Prometheus started on port %d", args.promPort)
@@ -282,9 +293,7 @@ def main():
     global GMAIL_CLIENT
     GMAIL_CLIENT = get_gmail_client()
 
-    start_http_server(args.promPort)
-
-    if args.daemonize:
+    if args.daemonize: 
         infinate_update_loop()
     else:
         update_gauages_from_gmail()
