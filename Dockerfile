@@ -10,16 +10,18 @@ RUN dnf -y update && \
 	python3-flask \
 	python3-waitress \
 	python3-google-api-client \
-	python3-prometheus_client && \
+	python3-prometheus_client \
+	python3-packaging && \
 	dnf clean all
 
 COPY gmail-exporter.py /usr/local/sbin/gmail-exporter
 
+ARG GITHUB_SHA=unknown
 ENV GITHUB_SHA=$GITHUB_SHA
 RUN mkdir /app
 RUN echo "$GITHUB_SHA:`date`" > /app/VERSION
 WORKDIR /app
 
-ENTRYPOINT [ "/usr/local/sbin/gmail-exporter" ]
+ENTRYPOINT [ "/usr/local/sbin/gmail-exporter", "-d" ]
 
 EXPOSE 8080

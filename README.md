@@ -81,7 +81,7 @@ To allow this app to access your gmail, it needs a `client_secret.json` file, an
 
 The `~/.prometheus-gmail-exporter/client_secret.json` file which you download from Google only identifies (your own instance of) this app to talk to the GMail API.
 
-The `~/.prometheus-gmail-exporter/login_cookie.dat` secret file identifies YOU, and gives access to your Gmail account via Google's API. This file cannot be directly downloaded from the Google Cloud Console, but is created by this tool on its first run, via an OAuth-based flow. It will open a local web browser to a Google Login. If this fails (e.g. due to an _"Error 400: redirect_uri_mismatch"),_ then you can _visit an URL to authorize this application,_ which is printed by the tool on its first run. Both will (should) redirect to `http://localhost:9090/` (which has to be added as an _Authorized redirect URI_ to the _OAuth 2.0 Client ID)_ to _complete the authentication flow,_ which then creates this file. (With that, the tool will then proceed further, and on the next run possibly print a message with a URL to click on to enable the Gmail API.)
+The `~/.prometheus-gmail-exporter/login_cookie.dat` secret file identifies YOU, and gives access to your Gmail account via Google's API. This file cannot be directly downloaded from the Google Cloud Console, but is created by this tool on its first run, via an OAuth-based flow. It will open a local web browser to a Google Login. If this fails (e.g. due to an _"Error 400: redirect_uri_mismatch"),_ then you can _visit an URL to authorize this application,_ which is printed by the tool on its first run. Both will (should) redirect to `http://localhost:8080/oauth2callback` (which has to be added as an _Authorized redirect URI_ to the _OAuth 2.0 Client ID)_ to _complete the authentication flow,_ which then creates this file. (With that, the tool will then proceed further, and on the next run possibly print a message with a URL to click on to enable the Gmail API.)
 
 To run this tool on a headless server, you may want to first create the `login_cookie.dat` on a Desktop/Workstation where a web browser is a available, and then move it to the headless server, perhaps by mounting this file from some form of secret provider into the container. (See also [issue #9](https://github.com/jamesread/prometheus-gmail-exporter/issues/9) for more background.)
 
@@ -97,7 +97,7 @@ Using either `docker` or `podman` will be fine. I like `podman` better, so
 examples are with podman.
 
 ```
-podman run ghcr.io/jamesread/prometheus-gmail-exporter:latest -v ~/.prometheus-gmail-exporter/:/root/.prometheus-gmail-exporter/
+podman run -v ~/.prometheus-gmail-exporter/:/root/.prometheus-gmail-exporter/ ghcr.io/jamesread/prometheus-gmail-exporter:latest
 ```
 
 ## Build your own container image
@@ -121,7 +121,7 @@ Options can be found with `--help`.
 ### Option B) Fedora/Red Hat distributions
 
 ```
-user@host: dnf install -y python3-configargparse python3-oauth2client python3-google-api-client python3-google-auth-oauthlib python3-prometheus_client
+user@host: dnf install -y python3-configargparse python3-oauth2client python3-google-api-client python3-google-auth-oauthlib python3-prometheus_client python3-packaging python3-flask python3-waitress python3-pyyaml
 user@host: ./gmail-exporter.py --labels Label_33 INBOX
 ```
 

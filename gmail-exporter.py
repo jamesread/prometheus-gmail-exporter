@@ -4,7 +4,6 @@ Checks gmail labels for unread messages and exposes the counts via prometheus.
 """
 
 import os
-import sys
 from time import sleep
 import logging
 from functools import lru_cache
@@ -21,14 +20,15 @@ from werkzeug.middleware.dispatcher import DispatcherMiddleware
 
 import waitress
 
+from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
 from googleapiclient import discovery
 from google_auth_oauthlib.flow import Flow
-from google.oauth2.credentials import Credentials
 
 GMAIL_CLIENT = None
 THREAD_SENDER_CACHE = {}
 READINESS = "STARTUP"
-SCOPES = 'https://www.googleapis.com/auth/gmail.readonly '
+SCOPES = 'https://www.googleapis.com/auth/gmail.readonly'
 
 authComplete = False
 flaskapp = Flask('prometheus-gmail-exporter')
@@ -63,7 +63,35 @@ def get_credentials():
         logging.info("Loading credentials from %s", args.credentialsPath)
         credentials = Credentials.from_authorized_user_file(args.credentialsPath, SCOPES)
 
+    if credentials and not credentials.valid:
+        if credentials.expired and credentials.refresh_token:
+            logging.info("Refreshing expired credentials")
+            credentials.refresh(Request())
+            with open(args.credentialsPath, 'w', encoding='utf8') as token:
+                token.write(credentials.to_json())
+        else:
+            credentials = None
+
     return credentials
+
+def try_mark_auth_complete():
+    global authComplete
+
+    if not os.path.exists(args.credentialsPath):
+        logging.info("No credentials file at %s; OAuth login required", args.credentialsPath)
+        return
+
+    credentials = get_credentials()
+    if credentials and credentials.valid:
+        authComplete = True
+        set_readiness("GOT_CREDENTIALS")
+        logging.info("Loaded valid credentials from %s", args.credentialsPath)
+        return
+
+    logging.warning(
+        "Credentials at %s are missing or invalid; OAuth login required",
+        args.credentialsPath,
+    )
 
 @lru_cache(maxsize=1)
 def get_labels():
@@ -87,8 +115,8 @@ def get_labels():
             labels.append({'id': label})
 
     if not labels:
-        logging.info('No labels found.')
-        sys.exit()
+        logging.warning('No labels found.')
+        return []
 
     return labels
 
@@ -103,8 +131,6 @@ def get_gauge_for_label(name, desc, labels = None):
     return gauge_collection[name]
 
 def get_gauge_for_query(name):
-    print(gauge_collection)
-
     if name not in gauge_collection:
         gauge = Gauge('gmail_' + name, name, [])
         gauge_collection[name] = gauge
@@ -113,6 +139,7 @@ def get_gauge_for_query(name):
 
 def update_gauages_from_gmail(*unused_arguments_needed_for_scheduler):
     global GMAIL_CLIENT
+    THREAD_SENDER_CACHE.clear()
     GMAIL_CLIENT = get_gmail_client()
 
     logging.info("Got gmail client successfully")
@@ -121,7 +148,12 @@ def update_gauages_from_gmail(*unused_arguments_needed_for_scheduler):
 
     logging.info("Updating gmail metrics - started")
 
-    for label in get_labels():
+    labels = get_labels()
+    if not labels:
+        logging.warning("Skipping metric update: no labels configured or found")
+        return
+
+    for label in labels:
         try:
             label_info = GMAIL_CLIENT.users().labels().get(id=label['id'], userId='me').execute()
 
@@ -146,9 +178,10 @@ def update_gauages_from_gmail(*unused_arguments_needed_for_scheduler):
     update_gauages_custom_message_queries()
 
 def update_gauages_custom_message_queries():
-    logging.info("Updating custom message queries - starting (%s)", str(len(args.customQueries)))
+    custom_queries = args.customQueries or []
+    logging.info("Updating custom message queries - starting (%s)", len(custom_queries))
 
-    for customQuery in args.customQueries:
+    for customQuery in custom_queries:
         logging.info("Updating custom message queries: %s", customQuery['name'])
 
         try:
@@ -242,11 +275,17 @@ def infinate_update_loop():
         sleep(args.updateDelaySeconds)
 
 
+def get_oauth_redirect_uri():
+    if args.oauthRedirectUri:
+        return args.oauthRedirectUri
+
+    return f"http://{args.oauthHost}:{args.promPort}/oauth2callback"
+
 def getFlow():
     flow = Flow.from_client_secrets_file(
         args.clientSecretFile,
         SCOPES,
-        redirect_uri=args.oauthHost + '/oauth2callback'
+        redirect_uri=get_oauth_redirect_uri()
     )
 
     flow.user_agent = 'prometheus-gmail-exporter'
@@ -258,7 +297,9 @@ def index():
     ret = "<h1>prometheus-gmail-exporter</h1><br />"
     ret += "State: " + READINESS + "<br />"
 
-    if not authComplete:
+    if authComplete:
+        ret += "Authenticated.<br />"
+    else:
         flow = getFlow()
 
         authorization_url, state = flow.authorization_url()
@@ -270,12 +311,13 @@ def index():
 
 @flaskapp.route('/oauth2callback')
 def oauth2callback():
+    global authComplete
+
     flow = getFlow()
     flow.fetch_token(authorization_response = request.url)
 
-    state = session['state']
-
-    if not request.args.get('state') == state:
+    state = session.get('state')
+    if request.args.get('state') != state:
         return 'Error: state mismatch', 400
 
     credentials = flow.credentials
@@ -285,16 +327,17 @@ def oauth2callback():
     with open(args.credentialsPath, 'w', encoding='utf8') as token:
         token.write(credentials.to_json())
 
+    authComplete = True
     set_readiness("GOT_CREDENTIALS")
 
-    return f'Credentials: {credentials.token}'
+    return "Authentication successful. You can close this window."
 
 @flaskapp.route('/readyz')
 def readyz():
     if READINESS == "":
         return "OK"
 
-    return Response(READINESS, status=200)
+    return Response(READINESS, status=503)
 
 def start_waitress():
     logging.info("Starting on port %d", args.promPort)
@@ -320,12 +363,13 @@ def initArgs():
     parser.add_argument('--credentialsPath', default=get_homedir_filepath('login_cookie.dat'))
     parser.add_argument("--updateDelaySeconds", type=int, default=300)
     parser.add_argument("--oauthHost", type=str, default="localhost")
+    parser.add_argument("--oauthRedirectUri", type=str, default=None)
     parser.add_argument("--oauthBindAddr", type=str, default="0.0.0.0")
     parser.add_argument("--oauthBindPort", type=int, default=9090)
     parser.add_argument("--promPort", type=int, default=8080)
     parser.add_argument("--daemonize", "-d", action='store_true')
     parser.add_argument("--logLevel", type=int, default = 20)
-    parser.add_argument("--customQueries", nargs='*', type=yaml.safe_load)
+    parser.add_argument("--customQueries", nargs='*', type=yaml.safe_load, default=[])
 
     global args
     args = parser.parse_args()
@@ -342,6 +386,7 @@ def main():
 
     set_readiness("MAIN")
     initArgs()
+    try_mark_auth_complete()
 
     flaskapp.wsgi_app = DispatcherMiddleware(flaskapp.wsgi_app, {
         '/metrics': make_wsgi_app()
