@@ -114,8 +114,8 @@ func TestGoldenMetricsOutput(t *testing.T) {
 	for _, mf := range mfs {
 		names = append(names, mf.GetName())
 	}
-	require.Contains(t, names, metrics.MetricName("INBOX_total"))
-	require.Contains(t, names, metrics.MetricName("INBOX_unread"))
+	require.Contains(t, names, "gmail_label_total")
+	require.Contains(t, names, "gmail_label_unread")
 }
 
 func TestFirstMessageSender(t *testing.T) {

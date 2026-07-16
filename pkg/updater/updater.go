@@ -113,16 +113,16 @@ func (u *Updater) updateLabel(ctx context.Context, client gmail.API, label gmail
 		return err
 	}
 
-	u.metrics.LabelTotal(labelInfo.Id, labelInfo.Name).Set(float64(labelInfo.ThreadsTotal))
-	u.metrics.LabelUnread(labelInfo.Id, labelInfo.Name).Set(float64(labelInfo.ThreadsUnread))
+	u.metrics.SetLabelTotal(labelInfo.Id, labelInfo.Name, float64(labelInfo.ThreadsTotal))
+	u.metrics.SetLabelUnread(labelInfo.Id, labelInfo.Name, float64(labelInfo.ThreadsUnread))
 
 	if _, ok := u.senderLabels[label.ID]; ok {
-		u.updateSenderGauges(ctx, client, labelInfo.Id, senderCache)
+		u.updateSenderGauges(ctx, client, labelInfo.Id, labelInfo.Name, senderCache)
 	}
 	return nil
 }
 
-func (u *Updater) updateSenderGauges(ctx context.Context, client gmail.API, labelID string, senderCache map[string]string) {
+func (u *Updater) updateSenderGauges(ctx context.Context, client gmail.API, labelID, labelName string, senderCache map[string]string) {
 	senderCounts := make(map[string]int)
 
 	threads, err := u.getAllUnreadThreads(ctx, client, labelID)
@@ -145,9 +145,8 @@ func (u *Updater) updateSenderGauges(ctx context.Context, client gmail.API, labe
 		senderCounts[sender]++
 	}
 
-	vec := u.metrics.LabelSender(labelID)
 	for sender, count := range senderCounts {
-		vec.WithLabelValues(sender).Set(float64(count))
+		u.metrics.SetLabelSender(labelID, labelName, sender, float64(count))
 	}
 }
 
@@ -192,7 +191,7 @@ func (u *Updater) updateCustomQueries(ctx context.Context, client gmail.API) {
 			continue
 		}
 
-		u.metrics.CustomQuery(customQuery.Name).Set(float64(res.ResultSizeEstimate))
+		u.metrics.SetCustomQuery(customQuery.Name, float64(res.ResultSizeEstimate))
 	}
 
 	log.Info("Updating gmail metrics - complete")

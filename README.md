@@ -11,21 +11,21 @@ There is a blog [article about why this was created, with an example integration
 ## Example prometheus Metrics
 
 ```sh
-# HELP gmail_INBOX_total INBOX Total
-# TYPE gmail_INBOX_total gauge
-gmail_INBOX_total 44351.0
-# HELP gmail_INBOX_unread INBOX Unread
-# TYPE gmail_INBOX_unread gauge
-gmail_INBOX_unread 43.0
-# HELP gmail_Label_33_total >/0. Triage Total
-# TYPE gmail_Label_33_total gauge
-gmail_Label_33_total 159.0
-# HELP gmail_Label_33_unread >/0. Triage Unread
-# TYPE gmail_Label_33_unread gauge
-gmail_Label_33_unread 0.0
-# HELP gmail_fooquery fooquery
-# TYPE gmail_fooquery gauge
-gmail_fooquery 201.0
+# HELP gmail_label_total Total threads for a Gmail label
+# TYPE gmail_label_total gauge
+gmail_label_total{id="INBOX",name="INBOX"} 44351
+# HELP gmail_label_unread Unread threads for a Gmail label
+# TYPE gmail_label_unread gauge
+gmail_label_unread{id="INBOX",name="INBOX"} 43
+# HELP gmail_label_total Total threads for a Gmail label
+# TYPE gmail_label_total gauge
+gmail_label_total{id="Label_33",name=">/0. Triage"} 159
+# HELP gmail_label_unread Unread threads for a Gmail label
+# TYPE gmail_label_unread gauge
+gmail_label_unread{id="Label_33",name=">/0. Triage"} 0
+# HELP gmail_custom_query Result size estimate for a configured Gmail search query
+# TYPE gmail_custom_query gauge
+gmail_custom_query{name="fooquery"} 201
 ```
 
 ## Example configuration file (`prometheus-gmail-exporter.yaml`)
