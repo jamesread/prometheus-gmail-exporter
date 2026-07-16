@@ -12,13 +12,22 @@ type MockAPI struct {
 	ThreadsByLabel   map[string][]*gmailapi.Thread
 	ThreadMetadata   map[string]*gmailapi.Thread
 	MessageEstimates map[string]int64
+	GetLabelErrs     map[string]error
+	ListMessagesErrs map[string]error
+	ListLabelsErr    error
 }
 
 func (m *MockAPI) ListLabels(ctx context.Context) ([]*gmailapi.Label, error) {
+	if m.ListLabelsErr != nil {
+		return nil, m.ListLabelsErr
+	}
 	return m.Labels, nil
 }
 
 func (m *MockAPI) GetLabel(ctx context.Context, id string) (*gmailapi.Label, error) {
+	if err, ok := m.GetLabelErrs[id]; ok {
+		return nil, err
+	}
 	for _, label := range m.Labels {
 		if label.Id == id {
 			return label, nil
@@ -35,7 +44,7 @@ func (m *MockAPI) GetLabel(ctx context.Context, id string) (*gmailapi.Label, err
 func (m *MockAPI) ListUnreadThreads(ctx context.Context, labelID, pageToken string) (*gmailapi.ListThreadsResponse, error) {
 	threads := m.ThreadsByLabel[labelID]
 	return &gmailapi.ListThreadsResponse{
-		Threads:           threads,
+		Threads:            threads,
 		ResultSizeEstimate: int64(len(threads)),
 	}, nil
 }
@@ -59,6 +68,9 @@ func (m *MockAPI) GetThreadMetadata(ctx context.Context, threadID string) (*gmai
 }
 
 func (m *MockAPI) ListMessages(ctx context.Context, query, pageToken string) (*gmailapi.ListMessagesResponse, error) {
+	if err, ok := m.ListMessagesErrs[query]; ok {
+		return nil, err
+	}
 	estimate := m.MessageEstimates[query]
 	return &gmailapi.ListMessagesResponse{ResultSizeEstimate: estimate}, nil
 }

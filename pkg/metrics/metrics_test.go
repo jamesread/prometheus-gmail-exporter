@@ -30,8 +30,10 @@ func TestLabeledMetricNames(t *testing.T) {
 	require.True(t, names["gmail_label_unread"])
 	require.True(t, names["gmail_label_sender"])
 	require.True(t, names["gmail_custom_query"])
+	require.True(t, names["gmail_scrape_success"])
 	require.False(t, names["gmail_INBOX_total"])
 	require.False(t, names["gmail_INBOX_unread"])
+	require.Equal(t, 0.0, testutil.ToFloat64(reg.ScrapeSuccess()))
 }
 
 func TestDeleteLabelRemovesSeries(t *testing.T) {

@@ -8,13 +8,14 @@ import (
 
 // Registry manages Gmail Prometheus gauges using labeled metric names.
 type Registry struct {
-	mu sync.Mutex
+	mu   sync.Mutex
 	prom *prometheus.Registry
 
-	labelTotal   *prometheus.GaugeVec
-	labelUnread  *prometheus.GaugeVec
-	labelSender  *prometheus.GaugeVec
-	customQuery  *prometheus.GaugeVec
+	labelTotal    *prometheus.GaugeVec
+	labelUnread   *prometheus.GaugeVec
+	labelSender   *prometheus.GaugeVec
+	customQuery   *prometheus.GaugeVec
+	scrapeSuccess prometheus.Gauge
 }
 
 func NewRegistry() *Registry {
@@ -36,9 +37,14 @@ func NewRegistry() *Registry {
 			Name: "gmail_custom_query",
 			Help: "Result size estimate for a configured Gmail search query",
 		}, []string{"name"}),
+		scrapeSuccess: prometheus.NewGauge(prometheus.GaugeOpts{
+			Name: "gmail_scrape_success",
+			Help: "1 if the last metrics update succeeded for all labels and queries, else 0",
+		}),
 	}
 
-	r.prom.MustRegister(r.labelTotal, r.labelUnread, r.labelSender, r.customQuery)
+	r.prom.MustRegister(r.labelTotal, r.labelUnread, r.labelSender, r.customQuery, r.scrapeSuccess)
+	r.scrapeSuccess.Set(0)
 	return r
 }
 
@@ -78,6 +84,19 @@ func (r *Registry) CustomQuery(name string) prometheus.Gauge {
 	return r.customQuery.WithLabelValues(name)
 }
 
+func (r *Registry) ScrapeSuccess() prometheus.Gauge {
+	return r.scrapeSuccess
+}
+
+// SetScrapeSuccess records whether the last update cycle fully succeeded.
+func (r *Registry) SetScrapeSuccess(ok bool) {
+	if ok {
+		r.scrapeSuccess.Set(1)
+		return
+	}
+	r.scrapeSuccess.Set(0)
+}
+
 // labelSenderVec adapts GaugeVec to set sender counts for a fixed label id/name.
 type labelSenderVec struct {
 	vec  *prometheus.GaugeVec
@@ -89,7 +108,7 @@ func (v *labelSenderVec) WithLabelValues(sender string) prometheus.Gauge {
 	return v.vec.WithLabelValues(v.id, v.name, sender)
 }
 
-// DeleteLabel removes total/unread/sender series for a Gmail label.
+// DeleteLabel removes total/unread/sender series for a Gmail label by id and name.
 func (r *Registry) DeleteLabel(id, name string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -99,12 +118,22 @@ func (r *Registry) DeleteLabel(id, name string) {
 	r.labelSender.DeletePartialMatch(prometheus.Labels{"id": id, "name": name})
 }
 
+// DeleteLabelByID removes total/unread/sender series for a Gmail label id.
+func (r *Registry) DeleteLabelByID(id string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.labelTotal.DeletePartialMatch(prometheus.Labels{"id": id})
+	r.labelUnread.DeletePartialMatch(prometheus.Labels{"id": id})
+	r.labelSender.DeletePartialMatch(prometheus.Labels{"id": id})
+}
+
 // DeleteCustomQuery removes the series for a custom query name.
 func (r *Registry) DeleteCustomQuery(name string) {
 	r.customQuery.DeleteLabelValues(name)
 }
 
-// ResetAll removes every Gmail metric series from the registry vectors.
+// ResetAll removes every Gmail label/query series. Does not change scrape_success.
 func (r *Registry) ResetAll() {
 	r.mu.Lock()
 	defer r.mu.Unlock()

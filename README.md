@@ -26,7 +26,12 @@ gmail_label_unread{id="Label_33",name=">/0. Triage"} 0
 # HELP gmail_custom_query Result size estimate for a configured Gmail search query
 # TYPE gmail_custom_query gauge
 gmail_custom_query{name="fooquery"} 201
+# HELP gmail_scrape_success 1 if the last metrics update succeeded for all labels and queries, else 0
+# TYPE gmail_scrape_success gauge
+gmail_scrape_success 1
 ```
+
+On API failures, outdated label/query series are removed from `/metrics` and `gmail_scrape_success` is set to `0` so alerts can detect a bad scrape.
 
 ## Example configuration file (`prometheus-gmail-exporter.yaml`)
 
