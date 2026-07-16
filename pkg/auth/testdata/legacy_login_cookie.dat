@@ -1,0 +1,9 @@
+{
+  "token": "ya29.example",
+  "refresh_token": "1//example",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "client_id": "123.apps.googleusercontent.com",
+  "client_secret": "secret",
+  "scopes": ["https://www.googleapis.com/auth/gmail.readonly"],
+  "expiry": "2030-01-01T00:00:00Z"
+}

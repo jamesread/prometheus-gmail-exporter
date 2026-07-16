@@ -1,22 +1,14 @@
 name: Linux Container CI
 
 on:
-  push:
-    branches: ["master"]
   pull_request:
     branches: ["master"]
 
 jobs:
-
   build:
-
     runs-on: ubuntu-latest
-
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - name: Build and push the container image
-        uses: macbre/push-to-ghcr@master
-        with:
-          image_name: ${{ github.repository }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build container image
+        run: docker build .

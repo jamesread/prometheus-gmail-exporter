@@ -1,27 +1,24 @@
-FROM fedora
+FROM golang:1.23 AS build
 
-RUN dnf -y update && \
-	dnf -y install \
-	python3-google-auth-oauthlib \
-	python3-configargparse \
-	python3-httplib2 \
-	python3-oauth2client \
-	python3-pyyaml \
-	python3-flask \
-	python3-waitress \
-	python3-google-api-client \
-	python3-prometheus_client \
-	python3-packaging && \
-	dnf clean all
+WORKDIR /src
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -o /prometheus-gmail-exporter ./cmd/prometheus-gmail-exporter/
 
-COPY gmail-exporter.py /usr/local/sbin/gmail-exporter
+FROM fedora:40
 
+RUN dnf -y update && dnf -y install ca-certificates && dnf clean all
+
+COPY --from=build /prometheus-gmail-exporter /usr/local/sbin/prometheus-gmail-exporter
+
+ARG VERSION=unknown
 ARG GITHUB_SHA=unknown
 ENV GITHUB_SHA=$GITHUB_SHA
 RUN mkdir /app
-RUN echo "$GITHUB_SHA:`date`" > /app/VERSION
+RUN echo "${VERSION}:${GITHUB_SHA}" > /app/VERSION
 WORKDIR /app
 
-ENTRYPOINT [ "/usr/local/sbin/gmail-exporter", "-d" ]
+ENTRYPOINT [ "/usr/local/sbin/prometheus-gmail-exporter", "-d" ]
 
 EXPOSE 8080
