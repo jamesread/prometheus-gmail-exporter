@@ -1,6 +1,13 @@
-# prometheus-gmail-exporter
+<div align = "center">
+  <h1>prometheus-gmail-exporter</h1>
 
-Checks gmail labels for unread messages and exposes the counts via prometheus.
+  Checks Gmail labels for unread messages and exposes the counts as Prometheus metrics.
+
+[![Maturity Badge](https://img.shields.io/badge/maturity-Production-brightgreen)](#none)
+[![Go Report Card](https://goreportcard.com/badge/github.com/jamesread/prometheus-gmail-exporter)](https://goreportcard.com/report/github.com/jamesread/prometheus-gmail-exporter)
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+
+</div>
 
 This project is implemented in **Go**. The exporter serves Prometheus metrics, OAuth login, and a Kubernetes readiness endpoint on port `8080` by default.
 
@@ -108,7 +115,7 @@ To run this tool on a headless server, you may want to first create the `login_c
 | `/metrics` | Prometheus metrics |
 | `/` | Status page and OAuth login link |
 | `/oauth2callback` | OAuth redirect handler |
-| `/readyz` | Kubernetes readiness probe |
+| `/readyz` | Kubernetes readiness probe (ready once the HTTP server is up; does not require OAuth credentials) |
 
 ## Troubleshooting: `accessNotConfigured`
 
@@ -159,4 +166,4 @@ make lint
 
 ## Releases
 
-Pushes to `master` run tests and [go-semantic-release](https://github.com/go-semantic-release/semantic-release). Use [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, etc.) so the next version, changelog, GitHub release, container image, and binary are produced automatically when there are releasable changes.
+Pushes to `master` run tests and [semantic-release](https://semantic-release.gitbook.io/) (via `@semantic-release/github`). Use [Conventional Commits](https://www.conventionalcommits.org/) (`feat:`, `fix:`, etc.) so the next version, GitHub release, container image, and binary are produced automatically when there are releasable changes. Closing keywords in commits or PR descriptions (`fixes #123`) trigger success comments on linked issues and pull requests.

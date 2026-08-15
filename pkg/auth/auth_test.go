@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/jamesread/prometheus-gmail-exporter/pkg/config"
-	"github.com/jamesread/prometheus-gmail-exporter/pkg/readiness"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
 )
@@ -36,7 +35,7 @@ func TestSaveTokenMatchesPythonShape(t *testing.T) {
 	path := filepath.Join(dir, "login_cookie.dat")
 
 	cfg := &config.Config{CredentialsPath: path}
-	mgr := NewManager(cfg, readiness.New())
+	mgr := NewManager(cfg)
 
 	token := &oauth2.Token{
 		AccessToken:  "access",
@@ -84,10 +83,8 @@ func TestTryMarkCompleteWithPythonFixture(t *testing.T) {
 		CredentialsPath:  credPath,
 		ClientSecretFile: secretPath,
 	}
-	ready := readiness.New()
-	mgr := NewManager(cfg, ready)
+	mgr := NewManager(cfg)
 	mgr.TryMarkComplete()
 
 	require.True(t, mgr.IsComplete())
-	require.Equal(t, "GOT_CREDENTIALS", ready.Get())
 }

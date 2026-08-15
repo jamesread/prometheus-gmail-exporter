@@ -28,7 +28,6 @@ func main() {
 	log.Info("prometheus-gmail-exporter is starting up.")
 
 	ready := readiness.New()
-	ready.Set("MAIN")
 
 	cfg, err := config.Load(os.Args[1:])
 	if err != nil {
@@ -43,7 +42,7 @@ func main() {
 
 	_ = config.EnsureConfigDir()
 
-	authMgr := auth.NewManager(cfg, ready)
+	authMgr := auth.NewManager(cfg)
 	authMgr.TryMarkComplete()
 
 	metricReg := metrics.NewRegistry()
@@ -53,6 +52,7 @@ func main() {
 	}
 
 	up := updater.New(cfg, authMgr, metricReg, ready)
+	ready.Set("")
 
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {

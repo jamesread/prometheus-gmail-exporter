@@ -16,15 +16,15 @@ import (
 func TestReadyzReadyAndNotReady(t *testing.T) {
 	cfg := &config.Config{PromPort: 8080}
 	ready := readiness.New()
-	authMgr := auth.NewManager(cfg, ready)
+	authMgr := auth.NewManager(cfg)
 	srv, err := New(cfg, authMgr, metrics.NewRegistry(), ready)
 	require.NoError(t, err)
 
-	ready.Set("MAIN")
+	ready.Set("SCRAPE_FAILED")
 	rec := httptest.NewRecorder()
 	srv.handleReadyz(rec, httptest.NewRequest(http.MethodGet, "/readyz", nil))
 	require.Equal(t, http.StatusServiceUnavailable, rec.Code)
-	require.Equal(t, "MAIN", rec.Body.String())
+	require.Equal(t, "SCRAPE_FAILED", rec.Body.String())
 
 	ready.Set("")
 	rec = httptest.NewRecorder()
@@ -50,7 +50,7 @@ func TestIndexShowsLoginWhenUnauthenticated(t *testing.T) {
 		OAuthHost:        "localhost",
 	}
 	ready := readiness.New()
-	authMgr := auth.NewManager(cfg, ready)
+	authMgr := auth.NewManager(cfg)
 	srv, err := New(cfg, authMgr, metrics.NewRegistry(), ready)
 	require.NoError(t, err)
 

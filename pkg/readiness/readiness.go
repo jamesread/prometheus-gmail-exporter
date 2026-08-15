@@ -4,7 +4,8 @@ import (
 	"sync/atomic"
 )
 
-// State tracks Kubernetes readiness; empty string means ready (matches Python).
+// State tracks Kubernetes readiness; empty string means ready.
+// Readiness does not depend on OAuth credentials — use / for the login flow.
 type State struct {
 	value atomic.Value
 }

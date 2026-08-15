@@ -11,12 +11,9 @@ func TestReadinessStateMachine(t *testing.T) {
 	require.Equal(t, "STARTUP", ready.Get())
 	require.False(t, ready.IsReady())
 
-	ready.Set("MAIN")
-	require.Equal(t, "MAIN", ready.Get())
-
-	ready.Set("GET_CREDENTIALS")
-	ready.Set("GOT_CREDENTIALS")
-	require.Equal(t, "GOT_CREDENTIALS", ready.Get())
+	ready.Set("SCRAPE_FAILED")
+	require.Equal(t, "SCRAPE_FAILED", ready.Get())
+	require.False(t, ready.IsReady())
 
 	ready.Set("")
 	require.True(t, ready.IsReady())

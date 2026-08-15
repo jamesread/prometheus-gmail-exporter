@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/jamesread/prometheus-gmail-exporter/pkg/config"
-	"github.com/jamesread/prometheus-gmail-exporter/pkg/readiness"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -33,16 +32,15 @@ type storedCredentials struct {
 
 // Manager handles OAuth credentials and Gmail client construction.
 type Manager struct {
-	cfg       *config.Config
-	ready     *readiness.State
-	mu        sync.RWMutex
-	complete  bool
-	oauthCfg  *oauth2.Config
-	token     *oauth2.Token
+	cfg      *config.Config
+	mu       sync.RWMutex
+	complete bool
+	oauthCfg *oauth2.Config
+	token    *oauth2.Token
 }
 
-func NewManager(cfg *config.Config, ready *readiness.State) *Manager {
-	return &Manager{cfg: cfg, ready: ready}
+func NewManager(cfg *config.Config) *Manager {
+	return &Manager{cfg: cfg}
 }
 
 func (m *Manager) IsComplete() bool {
@@ -75,7 +73,6 @@ func (m *Manager) TryMarkComplete() {
 		m.token = creds
 		m.complete = true
 		m.mu.Unlock()
-		m.ready.Set("GOT_CREDENTIALS")
 		log.Infof("Loaded valid credentials from %s", m.cfg.CredentialsPath)
 		return
 	}
@@ -87,8 +84,6 @@ func (m *Manager) OAuthConfig() (*oauth2.Config, error) {
 	if m.oauthCfg != nil {
 		return m.oauthCfg, nil
 	}
-
-	m.ready.Set("GET_CREDENTIALS")
 
 	for {
 		if _, err := os.Stat(m.cfg.ClientSecretFile); err == nil {
@@ -140,13 +135,10 @@ func (m *Manager) Exchange(ctx context.Context, code string) error {
 	m.complete = true
 	m.mu.Unlock()
 
-	m.ready.Set("GOT_CREDENTIALS")
 	return nil
 }
 
 func (m *Manager) loadCredentials() (*oauth2.Token, error) {
-	m.ready.Set("GET_CREDENTIALS")
-
 	data, err := os.ReadFile(m.cfg.CredentialsPath)
 	if err != nil {
 		return nil, err
